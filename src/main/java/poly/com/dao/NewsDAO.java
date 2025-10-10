@@ -21,15 +21,14 @@ public class NewsDAO extends Asm<news, String> {
     // ================== CRUD ==================
     @Override
     public void insert(news e) {
-        // Nếu NEWS.Id là IDENTITY trong DB: bỏ cột Id khỏi danh sách INSERT và bỏ tham số e.getId()
+        // Id là IDENTITY -> KHÔNG chèn cột Id
         final String sql = """
             INSERT INTO dbo.NEWS
-              (Id, Title, [Content], Image, PostedDate, ViewCount, Home, Id_Author, CategoryId)
-            VALUES (?,?,?,?,?,?,?,?,?)
+              (Title, [Content], Image, PostedDate, ViewCount, Home, Id_Author, CategoryId)
+            VALUES (?,?,?,?,?,?,?,?)
             """;
         try {
             JDBC.executeUpdate(sql,
-                e.getId(),
                 e.getTitle(),
                 e.getContent(),
                 e.getImage(),
@@ -211,6 +210,7 @@ public class NewsDAO extends Asm<news, String> {
     // ================== Mapper ==================
     private news map(ResultSet rs) throws SQLException {
         news a = new news();
+        // Id là INT trong DB; getString vẫn hợp lệ (JDBC sẽ convert sang chuỗi)
         a.setId(rs.getString("Id"));
         a.setTitle(rs.getString("Title"));
         a.setContent(rs.getString("Content"));
@@ -223,7 +223,6 @@ public class NewsDAO extends Asm<news, String> {
         a.setHome((Boolean) rs.getObject("Home"));           // giữ null nếu DB null
         a.setIdAuthor(rs.getString("Id_Author"));
         a.setCategoryId(rs.getString("CategoryId"));
-
         a.setCategoryName(rs.getString("categoryName"));     // từ JOIN
         return a;
     }

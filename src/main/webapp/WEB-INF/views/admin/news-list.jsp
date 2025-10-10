@@ -34,6 +34,7 @@
       <tr>
         <th>Id</th>
         <th>Tiêu đề</th>
+        <th>Tác giả</th>
         <th>Loại</th>
         <th>Home</th>
         <th>Lượt xem</th>
@@ -44,13 +45,14 @@
       <tbody>
       <c:choose>
         <c:when test="${empty newsList}">
-          <tr><td colspan="7"><em>Chưa có bản tin nào.</em></td></tr>
+          <tr><td colspan="8"><em>Chưa có bản tin nào.</em></td></tr>
         </c:when>
         <c:otherwise>
           <c:forEach var="n" items="${newsList}">
             <tr>
               <td>${n.id}</td>
               <td style="max-width:420px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">${n.title}</td>
+              <td>${n.idAuthor}</td> <!-- cột Tác giả -->
               <td>${empty n.categoryName ? n.categoryId : n.categoryName}</td>
               <td><c:if test="${n.home}">✓</c:if></td>
               <td>${n.viewCount != null ? n.viewCount : 0}</td>
@@ -100,13 +102,14 @@
             style="display:grid; gap:10px; max-width:800px">
         <input type="hidden" name="action" value="${empty editing ? 'create' : 'update'}"/>
 
-        <div>
-          <label for="id">Mã tin (Id)</label>
-          <input id="id" name="id" type="text"
-                 value="${empty editing ? '' : editing.id}"
-                 <c:if test="${empty editing}">required="required"</c:if>
-                 <c:if test="${not empty editing}">readonly="readonly"</c:if> />
-        </div>
+        <!-- Id -->
+        <c:if test="${not empty editing}">
+  <div>
+    <label for="id">Mã tin (Id)</label>
+    <input id="id" name="id" type="text" value="${editing.id}" readonly />
+  </div>
+</c:if>
+
 
         <div>
           <label for="title">Tiêu đề</label>
@@ -119,25 +122,37 @@
           <textarea id="content" name="content" rows="6" style="width:100%">${empty editing ? '' : editing.content}</textarea>
         </div>
 
+        <!-- Loại: COMBOBOX -->
+        <div>
+          <label for="categoryId">Loại (Category)</label>
+          <select id="categoryId" name="categoryId" required style="min-width:260px">
+            <c:forEach var="c" items="${categoriesList}">
+              <option value="${c.id}"
+                <c:if test="${not empty editing and editing.categoryId == c.id}">selected</c:if>>
+                ${c.name} (${c.id})
+              </option>
+            </c:forEach>
+          </select>
+          <c:if test="${empty categoriesList}">
+            <div style="color:#b91c1c; font-size:12px; margin-top:6px">
+              Chưa có loại tin nào — hãy tạo ở mục “Loại tin”.
+            </div>
+          </c:if>
+        </div>
+
         <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px">
-          <div>
-            <label for="categoryId">Loại (CategoryId)</label>
-            <input id="categoryId" name="categoryId" type="text" required
-                   value="${empty editing ? '' : editing.categoryId}" />
-          </div>
           <div>
             <label for="viewCount">Lượt xem</label>
             <input id="viewCount" name="viewCount" type="number" min="0"
                    value="${empty editing ? 0 : (editing.viewCount != null ? editing.viewCount : 0)}" />
           </div>
-        </div>
-
-        <div>
-          <label>
-            <input type="checkbox" name="home"
-              <c:if test="${not empty editing and editing.home}">checked="checked"</c:if> />
-            Trang nhất
-          </label>
+          <div style="display:flex; align-items:end">
+            <label style="display:flex; gap:8px; align-items:center">
+              <input type="checkbox" name="home"
+                <c:if test="${not empty editing and editing.home}">checked="checked"</c:if> />
+              Trang nhất
+            </label>
+          </div>
         </div>
 
         <div>

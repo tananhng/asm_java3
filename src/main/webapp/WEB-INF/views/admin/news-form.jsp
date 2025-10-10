@@ -1,8 +1,14 @@
 <%@ page contentType="text/html; charset=UTF-8" pageEncoding="UTF-8"%>
+<%@ taglib prefix="c"   uri="jakarta.tags.core" %>
+<%@ taglib prefix="fmt" uri="jakarta.tags.fmt" %>
+
 <jsp:include page="/WEB-INF/views/layout/header.jsp" />
 
-<c:set var="isEdit" value="${not empty newsEditing}" />
-<c:set var="n" value="${isEdit ? newsEditing : null}" />
+<c:set var="isEdit"   value="${not empty newsEditing}" />
+<c:set var="n"        value="${isEdit ? newsEditing : null}" />
+<c:set var="isAdmin"  value="${sessionScope.user != null and sessionScope.user.role}" />
+<c:set var="cats"     value="${requestScope.categoriesList}" />
+<c:set var="usersAll" value="${requestScope.usersList}" />
 
 <div class="layout-admin">
   <jsp:include page="/WEB-INF/views/layout/sidebar.jsp" />
@@ -19,11 +25,11 @@
           style="display:grid; gap:12px; max-width:780px">
       <input type="hidden" name="action" value="${isEdit ? 'update' : 'create'}"/>
 
-      <label for="id">Id</label>
-      <input id="id" name="id" type="text"
-             value="${isEdit ? n.id : ''}"
-             ${isEdit ? 'readonly' : 'required'}
-             placeholder="VD: N001" />
+      <!-- Id: KHÔNG hiển thị khi tạo mới vì DB IDENTITY; khi sửa, hiển thị readonly và giữ tên 'id' để servlet nhận -->
+      <c:if test="${isEdit}">
+        <label for="id">Id</label>
+        <input id="id" name="id" type="text" value="${n.id}" readonly />
+      </c:if>
 
       <label for="title">Tiêu đề</label>
       <input id="title" name="title" type="text" required
@@ -32,6 +38,7 @@
       <label for="content">Nội dung</label>
       <textarea id="content" name="content" rows="8" placeholder="HTML hoặc văn bản thuần...">${isEdit ? n.content : ''}</textarea>
 
+      <!-- Ảnh hiện tại (nếu có) -->
       <c:if test="${isEdit and not empty n.image}">
         <div>
           <small>Ảnh hiện tại:</small><br/>
@@ -39,9 +46,11 @@
                style="max-width:240px; height:auto; border:1px solid #eee; border-radius:8px;"/>
         </div>
       </c:if>
+
       <label for="image">Hình ảnh/Video (upload mới, tùy chọn)</label>
       <input id="image" name="image" type="file" accept="image/*,video/*" />
 
+      <!-- Ngày đăng -->
       <label for="postedDate">Ngày đăng</label>
       <c:set var="postedValue" value=""/>
       <c:if test="${isEdit and not empty n.postedDate}">
@@ -49,17 +58,55 @@
       </c:if>
       <input id="postedDate" name="postedDate" type="date" value="${postedValue}" />
 
-      <label for="idAuthor">Tác giả (mã phóng viên)</label>
-      <input id="idAuthor" name="idAuthor" type="text"
-             value="${isEdit ? n.idAuthor : ''}" placeholder="VD: PV001" />
+      <!-- TÁC GIẢ -->
+      <label for="idAuthor">Tác giả</label>
+      <c:choose>
+        <!-- Admin: cho phép nhập/chọn. Nếu usersList có sẵn, dùng datalist hỗ trợ chọn nhanh -->
+        <c:when test="${isAdmin}">
+          <input id="idAuthor" name="idAuthor" type="text"
+                 value="${isEdit ? n.idAuthor : ''}" placeholder="Mã phóng viên (vd: user1)" list="authorsList"/>
+          <c:if test="${not empty usersAll}">
+            <datalist id="authorsList">
+              <c:forEach var="u" items="${usersAll}">
+                <option value="${u.id}">${u.fullname}</option>
+              </c:forEach>
+            </datalist>
+          </c:if>
+          <small style="opacity:.7">Bỏ trống sẽ tự gán bạn là tác giả.</small>
+        </c:when>
 
+        <!-- Phóng viên: khoá input, hiển thị Id & gửi hidden để server nhận -->
+        <c:otherwise>
+          <input type="text" value="${sessionScope.user.id}" readonly />
+          <input type="hidden" name="idAuthor" value="${sessionScope.user.id}" />
+          <small style="opacity:.7">Bạn là tác giả bài viết.</small>
+        </c:otherwise>
+      </c:choose>
+
+      <!-- Lượt xem -->
       <label for="viewCount">Lượt xem</label>
       <input id="viewCount" name="viewCount" type="number" min="0"
              value="${isEdit ? (n.viewCount != null ? n.viewCount : 0) : 0}" />
 
-      <label for="categoryId">Mã loại tin</label>
-      <input id="categoryId" name="categoryId" type="text" required
-             value="${isEdit ? n.categoryId : ''}" placeholder="VD: cong-nghe / the-thao / thoi-su ..." />
+      <!-- LOẠI TIN: ưu tiên combobox nếu có categoriesList; nếu không, fallback sang input -->
+      <label for="categoryId">Loại tin</label>
+      <c:choose>
+        <c:when test="${not empty cats}">
+          <select id="categoryId" name="categoryId" required>
+            <option value="" disabled <c:if test="${not isEdit}">selected</c:if> >-- Chọn loại tin --</option>
+            <c:forEach var="c" items="${cats}">
+              <option value="${c.id}"
+                <c:if test="${isEdit and c.id == n.categoryId}">selected</c:if>>
+                ${c.name} (${c.id})
+              </option>
+            </c:forEach>
+          </select>
+        </c:when>
+        <c:otherwise>
+          <input id="categoryId" name="categoryId" type="text" required
+                 value="${isEdit ? n.categoryId : ''}" placeholder="VD: cong-nghe / the-thao / thoi-su ..." />
+        </c:otherwise>
+      </c:choose>
 
       <label>
         <input type="checkbox" name="home" <c:if test="${isEdit and n.home}">checked="checked"</c:if> />

@@ -35,6 +35,8 @@ public class ServletAdmin extends HttpServlet {
     protected void doGet(HttpServletRequest req, HttpServletResponse resp)
             throws ServletException, IOException {
 
+        setUTF8(req, resp);
+
         String uri = req.getRequestURI();
 
         // ---- LOGOUT ----
@@ -140,6 +142,8 @@ public class ServletAdmin extends HttpServlet {
     protected void doPost(HttpServletRequest req, HttpServletResponse resp)
             throws ServletException, IOException {
 
+        setUTF8(req, resp);
+
         String uri = req.getRequestURI();
 
         // ---- LOGIN (POST) ----
@@ -177,31 +181,31 @@ public class ServletAdmin extends HttpServlet {
         String action = param(req, "action", "");
         try {
             switch (action) {
-                case "create" -> {
-                    news n = new news();
-                    BeanUtils.populate(n, req.getParameterMap());
+            case "create" -> {
+                news n = new news();
+                BeanUtils.populate(n, req.getParameterMap());
 
-                    if (n.getId() == null || n.getId().isBlank())
-                        throw new IllegalArgumentException("Vui lòng nhập Id bản tin (String).");
+                // KHÔNG yêu cầu Id, DB tự tăng
+                n.setId(null);
 
-                    if (n.getPostedDate() == null) n.setPostedDate(new Date());
-                    if (n.getViewCount() == null)  n.setViewCount(0);
-                    n.setHome(req.getParameter("home") != null);
+                if (n.getPostedDate() == null) n.setPostedDate(new Date());
+                if (n.getViewCount() == null)  n.setViewCount(0);
+                n.setHome(req.getParameter("home") != null);
 
-                    // PV luôn là tác giả; Admin nếu bỏ trống thì gán admin hiện tại
-                    if (!isAdmin) {
-                        n.setIdAuthor(me.getId());
-                    } else if (n.getIdAuthor() == null || n.getIdAuthor().isBlank()) {
-                        n.setIdAuthor(me.getId());
-                    }
-
-                    String img = handleUpload(req, "image");
-                    if (img != null) n.setImage(img);
-
-                    newsDAO.insert(n);
-                    req.setAttribute("message", "Thêm thành công");
-                    forwardNewsList(req, resp, me, isAdmin);
+                if (!isAdmin) {
+                    n.setIdAuthor(me.getId());
+                } else if (n.getIdAuthor() == null || n.getIdAuthor().isBlank()) {
+                    n.setIdAuthor(me.getId());
                 }
+
+                String img = handleUpload(req, "image");
+                if (img != null) n.setImage(img);
+
+                newsDAO.insert(n);
+                req.setAttribute("message", "Thêm thành công");
+                forwardNewsList(req, resp, me, isAdmin);
+            }
+
                 case "update" -> {
                     String id = req.getParameter("id");
                     if (id == null || id.isBlank())
@@ -264,7 +268,8 @@ public class ServletAdmin extends HttpServlet {
     private void forwardNewsletterList(HttpServletRequest req, HttpServletResponse resp)
             throws ServletException, IOException {
         attachStats(req);
-        req.setAttribute("subs", newsletterDAO.selectAll());
+        // đồng bộ với newsletter-list.jsp (dùng newsletterList)
+        req.setAttribute("newsletterList", newsletterDAO.selectAll());
         req.getRequestDispatcher("/WEB-INF/views/admin/newsletter-list.jsp").forward(req, resp);
     }
 
@@ -273,6 +278,9 @@ public class ServletAdmin extends HttpServlet {
             throws ServletException, IOException {
         attachStats(req);
         req.setAttribute("isAdmin", isAdmin);
+        // cần cho combobox loại trong form tin tức
+        req.setAttribute("categoriesList", categoriesDAO.selectAll());
+
         if (isAdmin) {
             req.setAttribute("newsList", newsDAO.selectAll());
         } else {
@@ -314,6 +322,12 @@ public class ServletAdmin extends HttpServlet {
     private static String param(HttpServletRequest req, String name, String def) {
         String v = req.getParameter(name);
         return (v == null || v.isBlank()) ? def : v.trim();
+    }
+
+    private static void setUTF8(HttpServletRequest req, HttpServletResponse resp) {
+        try { req.setCharacterEncoding("UTF-8"); } catch (Exception ignore) {}
+        resp.setCharacterEncoding("UTF-8");
+        resp.setContentType("text/html; charset=UTF-8");
     }
 
     /** Lưu file upload vào /uploads và trả về đường dẫn tương đối (uploads/xxx) */

@@ -47,7 +47,7 @@
         </li>
         <li>
           <c:url var="newsletterUrl" value="/users"><c:param name="view" value="newsletter"/></c:url>
-          <a href="${newsletterUrl}" class="${param.view eq 'newsletter' ? 'active' : ''}">Bản tin</a>
+          <a href="${newsletterUrl}" class="${param.view eq 'newsletter' ? 'active' : ''}">Đăng kí nhận bản tin</a>
         </li>
 
         <c:choose>
