@@ -1,0 +1,28 @@
+# Build output
+target/
+build/
+out/
+
+# Logs & temp
+*.log
+*.tmp
+
+# IDE
+.idea/
+*.iml
+.vscode/
+.project
+.classpath
+.settings/
+
+# Gradle/Maven
+.gradle/
+.mvn/
+!gradle/wrapper/gradle-wrapper.jar
+
+# OS
+.DS_Store
+Thumbs.db
+
+# App uploads
+uploads/
