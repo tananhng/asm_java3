@@ -11,7 +11,7 @@
   <h2>Chào mừng đến với ABC News</h2>
   <div class="cards">
     <c:if test="${not empty list}">
-      <c:forEach var="n" items="${list}" begin="0" end="2">
+      <c:forEach var="n" items="${list}" begin="0" end="11">
         <article class="card">
           <a href="${cp}/users?view=detail&id=${n.id}">
             <c:choose>

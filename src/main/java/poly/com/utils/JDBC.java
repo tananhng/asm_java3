@@ -8,8 +8,8 @@ public class JDBC {
         "jdbc:sqlserver://localhost:1433;"
       + "databaseName=ABCNewsDB;"
       + "encrypt=true;trustServerCertificate=true;"; // dev: chấp nhận cert self-signed
-    private static final String USER = "tananh";
-    private static final String PASS = "tananh123";
+    private static final String USER = "sa";
+    private static final String PASS = "1903";
 
     static {
         try { Class.forName(DRIVER); }

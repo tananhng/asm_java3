@@ -1,20 +1,33 @@
 /* ========== Design tokens ========== */
-:root{
-  /* layout */
-  --max:1200px; --gap:16px; --radius:16px; --shadow:0 1px 2px rgba(0,0,0,.06);
-  /* palette (light) */
-  --bg:#f6f7f9; --paper:#ffffff; --text:#111827; --muted:#6b7280;
-  --border:#e5e7eb; --accent:#2563eb; --accent-weak:#eff6ff;
-  --header-bg:#0f172a; --header-fg:#e5e7eb; --header-fg-weak:#cbd5e1;
-}
-@media (prefers-color-scheme: dark){
+/* ======== Bảng màu SÁNG MỚI (chép và dán thay thế) ======== */
+:root {
+  /* Layout */
+  --max: 1200px;
+  --gap: 16px;
+  --radius: 16px;
+  --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+
+  /* Bảng màu (Light & Modern) */
+  --bg: #f8f9fa;               /* Màu nền chính - Xám rất nhạt */
+  --paper: #ffffff;            /* Màu của các thẻ card, page - Trắng */
+  --text: #212529;             /* Màu chữ chính - Đen xám */
+  --muted: #6c757d;           /* Màu chữ phụ, mờ hơn - Xám */
+  --border: #dee2e6;           /* Màu viền - Xám nhạt */
+  --accent: #0d6efd;           /* Màu nhấn (link, button) - Xanh dương hiện đại */
+  --accent-weak: #e7f5ff;     /* Màu nền yếu cho màu nhấn */
+
+  /* Header */
+  --header-bg: #003366;         /* Màu nền header - Xanh navy đậm, sang trọng */
+  --header-fg: #ffffff;        /* Màu chữ trên header - Trắng */
+  --header-fg-weak: #e9ecef;   /* Màu chữ phụ trên header - Trắng xám */
+}/* @media (prefers-color-scheme: dark){
   :root{
     --bg:#0b1220; --paper:#0f1629; --text:#e5e7eb; --muted:#9ca3af;
     --border:#1f2a44; --accent:#60a5fa; --accent-weak:#0b2546;
     --header-bg:#0b1220; --header-fg:#e5e7eb; --header-fg-weak:#aeb7c5;
     --shadow:0 1px 2px rgba(0,0,0,.3);
   }
-}
+} */
 
 /* ========== Base / reset ========== */
 *,
