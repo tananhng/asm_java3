@@ -9,6 +9,8 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Paths;
 import java.util.Date;
+import org.apache.commons.beanutils.ConvertUtils;
+import org.apache.commons.beanutils.converters.DateConverter;
 
 import org.apache.commons.beanutils.BeanUtils;
 
@@ -127,6 +129,31 @@ public class ServletAdmin extends HttpServlet {
                     }
                     forwardNewsList(req, resp, me, isAdmin);
                 }
+             // ====== USERS CRUD (GET) ======
+                case "users-edit" -> {
+                    if (!isAdmin) { resp.sendError(HttpServletResponse.SC_FORBIDDEN); return; }
+                    if (id != null && !id.isBlank()) {
+                        Users userToEdit = usersDAO.selectById(id);
+                        if (userToEdit != null) {
+                            req.setAttribute("userEditing", userToEdit);
+                        } else {
+                            req.setAttribute("message", "Không tìm thấy người dùng #" + id);
+                        }
+                    }
+                    forwardUserList(req, resp);
+                }
+                case "users-delete" -> {
+                    if (!isAdmin) { resp.sendError(HttpServletResponse.SC_FORBIDDEN); return; }
+                    if (id != null && !id.isBlank()) {
+                        try {
+                            usersDAO.delete(id);
+                            req.setAttribute("message", "Xóa người dùng thành công");
+                        } catch (Exception ex) {
+                            req.setAttribute("message", "Xóa thất bại: " + ex.getMessage());
+                        }
+                    }
+                    forwardUserList(req, resp);
+                }
 
                 // ====== NEWS LIST (default) ======
                 default -> forwardNewsList(req, resp, me, isAdmin);
@@ -137,11 +164,19 @@ public class ServletAdmin extends HttpServlet {
         }
     }
 
+    
+    
     // ================== POST ==================
     @Override
     protected void doPost(HttpServletRequest req, HttpServletResponse resp)
             throws ServletException, IOException {
 
+    	// ================== MÃ MỚI BỔ SUNG ==================
+        // Cấu hình bộ chuyển đổi ngày tháng cho BeanUtils để xử lý lỗi DateConverter
+        DateConverter dateConverter = new DateConverter(null);
+        dateConverter.setPattern("yyyy-MM-dd"); // Định dạng chuẩn của <input type="date">
+        ConvertUtils.register(dateConverter, Date.class);
+        // ======================================================   	
         setUTF8(req, resp);
 
         String uri = req.getRequestURI();
@@ -235,13 +270,55 @@ public class ServletAdmin extends HttpServlet {
                     req.setAttribute("message", "Sửa thành công");
                     forwardNewsList(req, resp, me, isAdmin);
                 }
+             // ====== USERS CRUD (POST) ======
+                case "users-create" -> {
+                    if (!isAdmin) { resp.sendError(HttpServletResponse.SC_FORBIDDEN); return; }
+                    try {
+                        Users newUser = new Users();
+                        BeanUtils.populate(newUser, req.getParameterMap());
+                        newUser.setRole(req.getParameter("role") != null);
+                        
+                        usersDAO.insert(newUser);
+                        req.setAttribute("message", "Thêm người dùng mới thành công!");
+                    } catch (Exception e) {
+                        req.setAttribute("message", "Thêm thất bại: " + e.getMessage());
+                    }
+                    forwardUserList(req, resp);
+                }
+                case "users-update" -> {
+                    if (!isAdmin) { resp.sendError(HttpServletResponse.SC_FORBIDDEN); return; }
+                    try {
+                        Users existingUser = new Users();
+                        BeanUtils.populate(existingUser, req.getParameterMap());
+                        existingUser.setRole(req.getParameter("role") != null);
+                        
+                        String password = req.getParameter("password");
+                        if (password == null || password.isBlank()) {
+                            Users oldUser = usersDAO.selectById(existingUser.getId());
+                            if (oldUser != null) {
+                                existingUser.setPassword(oldUser.getPassword());
+                            }
+                        }
+
+                        usersDAO.update(existingUser);
+                        req.setAttribute("message", "Cập nhật người dùng thành công!");
+                    } catch (Exception e) {
+                        req.setAttribute("message", "Cập nhật thất bại: " + e.getMessage());
+                    }
+                    forwardUserList(req, resp);
+                }
+                
                 default -> forwardNewsList(req, resp, me, isAdmin);
             }
+            
+            
         } catch (Exception e) {
             req.setAttribute("message", "Lỗi: " + e.getMessage());
             forwardNewsList(req, resp, me, isAdmin);
         }
+        
     }
+    
 
     // ================== FORWARD HELPERS ==================
     private void forwardDashboard(HttpServletRequest req, HttpServletResponse resp)
