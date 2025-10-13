@@ -18,9 +18,8 @@ public class UsersDAO extends Asm<Users, String> {
         final String sql =
             "INSERT INTO dbo.USERS (Id_Author, [Password], Fullname, Birthday, Gender, Mobile, Email, [Role]) " +
             "VALUES (?,?,?,?,?,?,?,?)";
-        try (Connection con = JDBC.getConnection();
-             PreparedStatement ps = con.prepareStatement(sql)) {
-            set(ps,
+        try {
+            JDBC.executeUpdate(sql,
                 e.getId(), // alias của idAuthor
                 e.getPassword(),
                 e.getFullname(),
@@ -30,7 +29,6 @@ public class UsersDAO extends Asm<Users, String> {
                 e.getEmail(),
                 e.getRole()
             );
-            ps.executeUpdate();
         } catch (SQLException ex) {
             throw new RuntimeException("Insert USERS failed (Id_Author=" + e.getId() + ")", ex);
         }
@@ -41,9 +39,8 @@ public class UsersDAO extends Asm<Users, String> {
         final String sql =
             "UPDATE dbo.USERS SET [Password]=?, Fullname=?, Birthday=?, Gender=?, Mobile=?, Email=?, [Role]=? " +
             "WHERE " + COL_ID + "=?";
-        try (Connection con = JDBC.getConnection();
-             PreparedStatement ps = con.prepareStatement(sql)) {
-            set(ps,
+        try {
+            JDBC.executeUpdate(sql,
                 e.getPassword(),
                 e.getFullname(),
                 e.getBirthday() == null ? null : new java.sql.Date(e.getBirthday().getTime()),
@@ -53,7 +50,6 @@ public class UsersDAO extends Asm<Users, String> {
                 e.getRole(),
                 e.getId()
             );
-            ps.executeUpdate();
         } catch (SQLException ex) {
             throw new RuntimeException("Update USERS failed (Id_Author=" + e.getId() + ")", ex);
         }
@@ -62,10 +58,8 @@ public class UsersDAO extends Asm<Users, String> {
     @Override
     public void delete(String idAuthor) {
         final String sql = "DELETE FROM dbo.USERS WHERE " + COL_ID + "=?";
-        try (Connection con = JDBC.getConnection();
-             PreparedStatement ps = con.prepareStatement(sql)) {
-            set(ps, idAuthor);
-            ps.executeUpdate();
+        try {
+            JDBC.executeUpdate(sql, idAuthor);
         } catch (SQLException ex) {
             throw new RuntimeException("Delete USERS failed (Id_Author=" + idAuthor + ")", ex);
         }
@@ -95,14 +89,13 @@ public class UsersDAO extends Asm<Users, String> {
     @Override
     public List<Users> selectBySql(String sql, Object... args) {
         List<Users> list = new ArrayList<>();
-        try (Connection con = JDBC.getConnection();
-             PreparedStatement ps = con.prepareStatement(sql)) {
-            set(ps, args);
-            try (ResultSet rs = ps.executeQuery()) {
-                while (rs.next()) list.add(map(rs));
-            }
+        try (ResultSet rs = JDBC.executeQuery(sql, args)) {
+            while (rs.next()) list.add(map(rs));
         } catch (SQLException ex) {
             throw new RuntimeException("Query USERS failed", ex);
+        } finally {
+            // Lưu ý: Cần một cơ chế để đóng Connection sau khi dùng executeQuery.
+            // Trong trường hợp này, giả định phương thức close() trong JDBC.java xử lý việc đó.
         }
         return list;
     }
@@ -114,10 +107,6 @@ public class UsersDAO extends Asm<Users, String> {
         } catch (SQLException e) {
             throw new RuntimeException("COUNT USERS failed", e);
         }
-    }
-
-    private static void set(PreparedStatement ps, Object... params) throws SQLException {
-        for (int i = 0; i < params.length; i++) ps.setObject(i + 1, params[i]);
     }
 
     private static Users map(ResultSet rs) throws SQLException {

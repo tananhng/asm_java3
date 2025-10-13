@@ -88,3 +88,18 @@ INSERT INTO dbo.NEWSLETTERS (Email, Enabled) VALUES
 (N'docgia1@example.com', 1),
 (N'docgia2@example.com', 1);
 GO
+
+
+-- Xóa bỏ ràng buộc khóa ngoại hiện tại giữa bảng NEWS và USERS
+ALTER TABLE dbo.NEWS
+DROP CONSTRAINT FK_NEWS_USERS;
+GO
+
+-- Tạo lại ràng buộc khóa ngoại với tùy chọn ON DELETE CASCADE
+ALTER TABLE dbo.NEWS
+ADD CONSTRAINT FK_NEWS_USERS
+FOREIGN KEY (Id_Author) REFERENCES dbo.USERS(Id_Author)
+ON DELETE CASCADE;
+GO
+
+select * from USERS

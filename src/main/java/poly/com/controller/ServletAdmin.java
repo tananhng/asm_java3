@@ -11,6 +11,7 @@ import java.nio.file.Paths;
 import java.util.Date;
 import org.apache.commons.beanutils.ConvertUtils;
 import org.apache.commons.beanutils.converters.DateConverter;
+import org.apache.commons.beanutils.converters.BooleanConverter; // Bổ sung import
 
 import org.apache.commons.beanutils.BeanUtils;
 
@@ -31,6 +32,21 @@ public class ServletAdmin extends HttpServlet {
     private final UsersDAO usersDAO = new UsersDAO();
     private final CategoriesDAO categoriesDAO = new CategoriesDAO();
     private final NewsletterDAO newsletterDAO = new NewsletterDAO();
+
+    // ================== KHỞI TẠO STATIC ==================
+    // Đăng ký các bộ chuyển đổi cần thiết cho BeanUtils một lần duy nhất.
+    static {
+        // 1. Cấu hình cho việc chuyển đổi ngày tháng
+        DateConverter dateConverter = new DateConverter(null);
+        dateConverter.setPattern("yyyy-MM-dd");
+        ConvertUtils.register(dateConverter, Date.class);
+        
+        // 2. Cấu hình cho việc chuyển đổi giá trị Boolean
+        //    (Xử lý các chuỗi như "true", "false", "yes", "no", "on", "off")
+        BooleanConverter booleanConverter = new BooleanConverter(null);
+        ConvertUtils.register(booleanConverter, Boolean.class);
+    }
+    // ======================================================
 
     // ================== GET ==================
     @Override
@@ -164,19 +180,12 @@ public class ServletAdmin extends HttpServlet {
         }
     }
 
-    
-    
+
+
     // ================== POST ==================
     @Override
     protected void doPost(HttpServletRequest req, HttpServletResponse resp)
             throws ServletException, IOException {
-
-    	// ================== MÃ MỚI BỔ SUNG ==================
-        // Cấu hình bộ chuyển đổi ngày tháng cho BeanUtils để xử lý lỗi DateConverter
-        DateConverter dateConverter = new DateConverter(null);
-        dateConverter.setPattern("yyyy-MM-dd"); // Định dạng chuẩn của <input type="date">
-        ConvertUtils.register(dateConverter, Date.class);
-        // ======================================================   	
         setUTF8(req, resp);
 
         String uri = req.getRequestURI();
@@ -276,12 +285,15 @@ public class ServletAdmin extends HttpServlet {
                     try {
                         Users newUser = new Users();
                         BeanUtils.populate(newUser, req.getParameterMap());
+                        // Ghi đè lại giá trị role để đảm bảo tính đúng đắn từ checkbox
                         newUser.setRole(req.getParameter("role") != null);
                         
                         usersDAO.insert(newUser);
                         req.setAttribute("message", "Thêm người dùng mới thành công!");
                     } catch (Exception e) {
                         req.setAttribute("message", "Thêm thất bại: " + e.getMessage());
+                        // In ra lỗi để debug
+                        e.printStackTrace();
                     }
                     forwardUserList(req, resp);
                 }
@@ -290,6 +302,7 @@ public class ServletAdmin extends HttpServlet {
                     try {
                         Users existingUser = new Users();
                         BeanUtils.populate(existingUser, req.getParameterMap());
+                        // Ghi đè lại giá trị role
                         existingUser.setRole(req.getParameter("role") != null);
                         
                         String password = req.getParameter("password");
@@ -304,6 +317,7 @@ public class ServletAdmin extends HttpServlet {
                         req.setAttribute("message", "Cập nhật người dùng thành công!");
                     } catch (Exception e) {
                         req.setAttribute("message", "Cập nhật thất bại: " + e.getMessage());
+                        e.printStackTrace();
                     }
                     forwardUserList(req, resp);
                 }
@@ -314,6 +328,7 @@ public class ServletAdmin extends HttpServlet {
             
         } catch (Exception e) {
             req.setAttribute("message", "Lỗi: " + e.getMessage());
+            e.printStackTrace();
             forwardNewsList(req, resp, me, isAdmin);
         }
         
