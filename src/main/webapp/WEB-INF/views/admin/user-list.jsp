@@ -17,7 +17,7 @@
       </div>
     </c:if>
 
-    <!-- Nút thêm -->
+    <!-- Nút thêm -> sang trang user-form -->
     <p>
       <c:url var="addUrl" value="/admin">
         <c:param name="action" value="users-edit"/>
@@ -85,84 +85,6 @@
       </c:choose>
       </tbody>
     </table>
-
-    <!-- FORM TẠO/SỬA (tuỳ chọn, nếu bạn đã làm action users-edit/users-create/users-update trong ServletAdmin) -->
-    <c:set var="editing" value="${requestScope.userEditing}" />
-    <section style="margin-top:24px">
-      <h3>
-        <c:choose>
-          <c:when test="${empty editing}">Thêm người dùng</c:when>
-          <c:otherwise>Sửa người dùng #${editing.id}</c:otherwise>
-        </c:choose>
-      </h3>
-
-      <form action="<c:url value='/admin'/>" method="post" style="display:grid; gap:10px; max-width:800px">
-        <input type="hidden" name="action" value="${empty editing ? 'users-create' : 'users-update'}"/>
-
-        <div>
-          <label for="id">Mã đăng nhập (Id)</label>
-          <input id="id" name="id" type="text"
-                 value="${empty editing ? '' : editing.id}"
-                 ${empty editing ? 'required' : 'readonly'} />
-        </div>
-
-        <div>
-          <label for="password">Mật khẩu</label>
-          <input id="password" name="password" type="password"
-                 placeholder="${empty editing ? '' : 'Để trống nếu không đổi'}"
-                 ${empty editing ? 'required' : ''}/>
-        </div>
-
-        <div>
-          <label for="fullname">Họ và tên</label>
-          <input id="fullname" name="fullname" type="text" required
-                 value="${empty editing ? '' : editing.fullname}" style="width:100%"/>
-        </div>
-
-        <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px">
-          <div>
-            <label for="email">Email</label>
-            <input id="email" name="email" type="email" value="${empty editing ? '' : editing.email}"/>
-          </div>
-          <div>
-            <label for="mobile">Điện thoại</label>
-            <input id="mobile" name="mobile" type="text" value="${empty editing ? '' : editing.mobile}"/>
-          </div>
-        </div>
-
-        <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px">
-          <div>
-            <label for="birthday">Ngày sinh</label>
-            <c:if test="${not empty editing and not empty editing.birthday}">
-              <fmt:formatDate var="birthdayValue" value="${editing.birthday}" pattern="yyyy-MM-dd"/>
-            </c:if>
-            <input id="birthday" name="birthday" type="date" value="${birthdayValue}"/>
-          </div>
-          <div>
-            <label>Giới tính</label>
-            <div style="display:flex; gap:12px; align-items:center">
-              <label><input type="radio" name="gender" value="true"
-                <c:if test="${empty editing or editing.gender == true}">checked="checked"</c:if> /> Nam</label>
-              <label><input type="radio" name="gender" value="false"
-                <c:if test="${not empty editing and editing.gender == false}">checked="checked"</c:if> /> Nữ</label>
-            </div>
-          </div>
-        </div>
-
-        <div>
-          <label>
-            <input type="checkbox" name="role"
-              <c:if test="${not empty editing and editing.role}">checked="checked"</c:if> />
-            Quản trị
-          </label>
-        </div>
-
-        <div style="margin-top:8px; display:flex; gap:10px">
-          <button class="btn" type="submit">${empty editing ? 'Tạo mới' : 'Cập nhật'}</button>
-          <a class="btn" href="<c:url value='/admin'><c:param name='action' value='users'/></c:url>" style="background:#6b7280">Huỷ</a>
-        </div>
-      </form>
-    </section>
   </section>
 </div>
 

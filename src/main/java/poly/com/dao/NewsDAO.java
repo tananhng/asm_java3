@@ -77,11 +77,8 @@ public class NewsDAO extends Asm<news, String> {
     @Override
     public void delete(String id) {
         final String sql = "DELETE FROM dbo.NEWS WHERE Id=?";
-        try {
-            JDBC.executeUpdate(sql, id);
-        } catch (SQLException ex) {
-            throw new RuntimeException("Delete NEWS failed (Id=" + id + ")", ex);
-        }
+        try { JDBC.executeUpdate(sql, id); }
+        catch (SQLException ex) { throw new RuntimeException("Delete NEWS failed (Id=" + id + ")", ex); }
     }
 
     // ================== Queries ==================
@@ -91,33 +88,18 @@ public class NewsDAO extends Asm<news, String> {
         return selectBySql(sql);
     }
 
-    /** Dùng cho phóng viên: chỉ lấy bài theo tác giả */
     public List<news> selectByAuthor(String idAuthor) {
         final String sql = BASE_SELECT + " WHERE n.Id_Author=? ORDER BY n.PostedDate DESC";
         return selectBySql(sql, idAuthor);
     }
 
     public List<news> selectTopNewsByView() {
-        final String sql = """
-            SELECT TOP 5 n.Id, n.Title, n.[Content], n.Image, n.PostedDate,
-                         n.ViewCount, n.Home, n.Id_Author, n.CategoryId,
-                         c.Name AS categoryName
-            FROM dbo.NEWS n
-            LEFT JOIN dbo.CATEGORIES c ON c.Id = n.CategoryId
-            ORDER BY n.ViewCount DESC, n.PostedDate DESC
-            """;
+        final String sql = BASE_SELECT + " ORDER BY n.ViewCount DESC, n.PostedDate DESC OFFSET 0 ROWS FETCH NEXT 5 ROWS ONLY";
         return selectBySql(sql);
     }
 
     public List<news> selectTopNewsByDate() {
-        final String sql = """
-            SELECT TOP 5 n.Id, n.Title, n.[Content], n.Image, n.PostedDate,
-                         n.ViewCount, n.Home, n.Id_Author, n.CategoryId,
-                         c.Name AS categoryName
-            FROM dbo.NEWS n
-            LEFT JOIN dbo.CATEGORIES c ON c.Id = n.CategoryId
-            ORDER BY n.PostedDate DESC
-            """;
+        final String sql = BASE_SELECT + " ORDER BY n.PostedDate DESC OFFSET 0 ROWS FETCH NEXT 5 ROWS ONLY";
         return selectBySql(sql);
     }
 
@@ -126,67 +108,57 @@ public class NewsDAO extends Asm<news, String> {
         return selectBySql(sql, categoryId);
     }
 
-    /** Tăng view an toàn (không cần load entity) */
-    public void increaseView(String id) {
-        final String sql = "UPDATE dbo.NEWS SET ViewCount = ISNULL(ViewCount,0) + 1 WHERE Id = ?";
-        try {
-            JDBC.executeUpdate(sql, id);
-        } catch (SQLException e) {
-            throw new RuntimeException("increaseView failed (Id=" + id + ")", e);
-        }
+    /** ======= MỚI: chỉ lấy bài Trang nhất (Home = 1) ======= */
+    public List<news> selectHomeLatest(int top) {
+        final String sql = BASE_SELECT +
+            " WHERE n.Home = 1 ORDER BY n.PostedDate DESC OFFSET 0 ROWS FETCH NEXT ? ROWS ONLY";
+        return selectBySql(sql, top);
     }
 
-    /** Phân trang (SQL Server 2012+) */
+    public List<news> selectHomeMostViewed(int top) {
+        final String sql = BASE_SELECT +
+            " WHERE n.Home = 1 ORDER BY n.ViewCount DESC, n.PostedDate DESC OFFSET 0 ROWS FETCH NEXT ? ROWS ONLY";
+        return selectBySql(sql, top);
+    }
+    /** ====================================================== */
+
+    public void increaseView(String id) {
+        final String sql = "UPDATE dbo.NEWS SET ViewCount = ISNULL(ViewCount,0) + 1 WHERE Id = ?";
+        try { JDBC.executeUpdate(sql, id); }
+        catch (SQLException e) { throw new RuntimeException("increaseView failed (Id=" + id + ")", e); }
+    }
+
     public List<news> selectPage(int offset, int limit) {
-        final String sql = BASE_SELECT + """
-            ORDER BY n.PostedDate DESC
-            OFFSET ? ROWS FETCH NEXT ? ROWS ONLY
-            """;
+        final String sql = BASE_SELECT + " ORDER BY n.PostedDate DESC OFFSET ? ROWS FETCH NEXT ? ROWS ONLY";
         return selectBySql(sql, offset, limit);
     }
 
-    /** Mới nhất với số lượng tuỳ chọn */
     public List<news> latest(int top) {
-        final String sql = BASE_SELECT +
-            " ORDER BY n.PostedDate DESC OFFSET 0 ROWS FETCH NEXT ? ROWS ONLY";
+        final String sql = BASE_SELECT + " ORDER BY n.PostedDate DESC OFFSET 0 ROWS FETCH NEXT ? ROWS ONLY";
         return selectBySql(sql, top);
     }
 
-    /** Xem nhiều nhất với số lượng tuỳ chọn */
     public List<news> mostViewed(int top) {
-        final String sql = BASE_SELECT +
-            " ORDER BY n.ViewCount DESC, n.PostedDate DESC OFFSET 0 ROWS FETCH NEXT ? ROWS ONLY";
+        final String sql = BASE_SELECT + " ORDER BY n.ViewCount DESC, n.PostedDate DESC OFFSET 0 ROWS FETCH NEXT ? ROWS ONLY";
         return selectBySql(sql, top);
     }
 
-    /** Đếm tổng số bài (dashboard) */
     public long countAll() {
         final String sql = "SELECT COUNT(*) FROM dbo.NEWS";
-        try (ResultSet rs = JDBC.executeQuery(sql)) {
-            return rs.next() ? rs.getLong(1) : 0L;
-        } catch (SQLException e) {
-            throw new RuntimeException("countAll NEWS failed", e);
-        }
+        try (ResultSet rs = JDBC.executeQuery(sql)) { return rs.next() ? rs.getLong(1) : 0L; }
+        catch (SQLException e) { throw new RuntimeException("countAll NEWS failed", e); }
     }
 
-    /** Đếm số bài Trang nhất */
     public long countHome() {
         final String sql = "SELECT COUNT(*) FROM dbo.NEWS WHERE Home = 1";
-        try (ResultSet rs = JDBC.executeQuery(sql)) {
-            return rs.next() ? rs.getLong(1) : 0L;
-        } catch (SQLException e) {
-            throw new RuntimeException("countHome NEWS failed", e);
-        }
+        try (ResultSet rs = JDBC.executeQuery(sql)) { return rs.next() ? rs.getLong(1) : 0L; }
+        catch (SQLException e) { throw new RuntimeException("countHome NEWS failed", e); }
     }
 
-    /** Đếm theo loại */
     public long countByCategory(String categoryId) {
         final String sql = "SELECT COUNT(*) FROM dbo.NEWS WHERE CategoryId = ?";
-        try (ResultSet rs = JDBC.executeQuery(sql, categoryId)) {
-            return rs.next() ? rs.getLong(1) : 0L;
-        } catch (SQLException e) {
-            throw new RuntimeException("countByCategory NEWS failed", e);
-        }
+        try (ResultSet rs = JDBC.executeQuery(sql, categoryId)) { return rs.next() ? rs.getLong(1) : 0L; }
+        catch (SQLException e) { throw new RuntimeException("countByCategory NEWS failed", e); }
     }
 
     @Override
@@ -210,7 +182,6 @@ public class NewsDAO extends Asm<news, String> {
     // ================== Mapper ==================
     private news map(ResultSet rs) throws SQLException {
         news a = new news();
-        // Id là INT trong DB; getString vẫn hợp lệ (JDBC sẽ convert sang chuỗi)
         a.setId(rs.getString("Id"));
         a.setTitle(rs.getString("Title"));
         a.setContent(rs.getString("Content"));
@@ -219,11 +190,11 @@ public class NewsDAO extends Asm<news, String> {
         Timestamp ts = rs.getTimestamp("PostedDate");
         a.setPostedDate(ts == null ? null : new java.util.Date(ts.getTime()));
 
-        a.setViewCount((Integer) rs.getObject("ViewCount")); // giữ null nếu DB null
-        a.setHome((Boolean) rs.getObject("Home"));           // giữ null nếu DB null
+        a.setViewCount((Integer) rs.getObject("ViewCount"));
+        a.setHome((Boolean) rs.getObject("Home"));
         a.setIdAuthor(rs.getString("Id_Author"));
         a.setCategoryId(rs.getString("CategoryId"));
-        a.setCategoryName(rs.getString("categoryName"));     // từ JOIN
+        a.setCategoryName(rs.getString("categoryName"));
         return a;
     }
 }

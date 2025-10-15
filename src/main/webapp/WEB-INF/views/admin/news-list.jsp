@@ -22,9 +22,9 @@
       </p>
     </c:if>
 
-    <!-- nút thêm -->
+    <!-- nút thêm -> sang trang form -->
     <p>
-      <c:url var="addUrl" value="/admin"><c:param name="action" value="edit"/></c:url>
+      <c:url var="addUrl" value="/admin"><c:param name="action" value="news-edit"/></c:url>
       <a class="btn" href="${addUrl}">+ Thêm bản tin</a>
     </p>
 
@@ -52,7 +52,7 @@
             <tr>
               <td>${n.id}</td>
               <td style="max-width:420px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">${n.title}</td>
-              <td>${n.idAuthor}</td> <!-- cột Tác giả -->
+              <td>${n.idAuthor}</td>
               <td>${empty n.categoryName ? n.categoryId : n.categoryName}</td>
               <td><c:if test="${n.home}">✓</c:if></td>
               <td>${n.viewCount != null ? n.viewCount : 0}</td>
@@ -87,93 +87,6 @@
       </c:choose>
       </tbody>
     </table>
-
-    <!-- FORM TẠO/SỬA -->
-    <c:set var="editing" value="${requestScope.newsEditing}" />
-    <section style="margin-top:24px">
-      <h3>
-        <c:choose>
-          <c:when test="${empty editing}">Thêm bản tin</c:when>
-          <c:otherwise>Sửa bản tin #${editing.id}</c:otherwise>
-        </c:choose>
-      </h3>
-
-      <form action="<c:url value='/admin'/>" method="post" enctype="multipart/form-data"
-            style="display:grid; gap:10px; max-width:800px">
-        <input type="hidden" name="action" value="${empty editing ? 'create' : 'update'}"/>
-
-        <!-- Id -->
-        <c:if test="${not empty editing}">
-  <div>
-    <label for="id">Mã tin (Id)</label>
-    <input id="id" name="id" type="text" value="${editing.id}" readonly />
-  </div>
-</c:if>
-
-
-        <div>
-          <label for="title">Tiêu đề</label>
-          <input id="title" name="title" type="text" required
-                 value="${empty editing ? '' : editing.title}" style="width:100%"/>
-        </div>
-
-        <div>
-          <label for="content">Nội dung</label>
-          <textarea id="content" name="content" rows="6" style="width:100%">${empty editing ? '' : editing.content}</textarea>
-        </div>
-
-        <!-- Loại: COMBOBOX -->
-        <div>
-          <label for="categoryId">Loại (Category)</label>
-          <select id="categoryId" name="categoryId" required style="min-width:260px">
-            <c:forEach var="c" items="${categoriesList}">
-              <option value="${c.id}"
-                <c:if test="${not empty editing and editing.categoryId == c.id}">selected</c:if>>
-                ${c.name} (${c.id})
-              </option>
-            </c:forEach>
-          </select>
-          <c:if test="${empty categoriesList}">
-            <div style="color:#b91c1c; font-size:12px; margin-top:6px">
-              Chưa có loại tin nào — hãy tạo ở mục “Loại tin”.
-            </div>
-          </c:if>
-        </div>
-
-        <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px">
-          <div>
-            <label for="viewCount">Lượt xem</label>
-            <input id="viewCount" name="viewCount" type="number" min="0"
-                   value="${empty editing ? 0 : (editing.viewCount != null ? editing.viewCount : 0)}" />
-          </div>
-          <div style="display:flex; align-items:end">
-            <label style="display:flex; gap:8px; align-items:center">
-              <input type="checkbox" name="home"
-                <c:if test="${not empty editing and editing.home}">checked="checked"</c:if> />
-              Trang nhất
-            </label>
-          </div>
-        </div>
-
-        <div>
-          <label for="image">Ảnh đại diện (upload mới)</label>
-          <input id="image" name="image" type="file" accept="image/*"/>
-          <c:if test="${not empty editing and not empty editing.image}">
-            <div style="margin-top:8px">
-              <small>Hiện tại:</small><br/>
-              <img src="${pageContext.request.contextPath}/${editing.image}" alt=""
-                   style="max-width:220px; height:auto; border:1px solid #eee; border-radius:8px"/>
-            </div>
-          </c:if>
-        </div>
-
-        <div style="margin-top:8px; display:flex; gap:10px">
-          <button class="btn" type="submit">${empty editing ? 'Tạo mới' : 'Cập nhật'}</button>
-          <a class="btn" href="<c:url value='/admin'><c:param name='action' value='list'/></c:url>"
-             style="background:#6b7280">Huỷ</a>
-        </div>
-      </form>
-    </section>
   </section>
 </div>
 

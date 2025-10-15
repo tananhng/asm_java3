@@ -9,20 +9,24 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Paths;
 import java.util.Date;
-import org.apache.commons.beanutils.ConvertUtils;
-import org.apache.commons.beanutils.converters.DateConverter;
-import org.apache.commons.beanutils.converters.BooleanConverter; // Bổ sung import
 
 import org.apache.commons.beanutils.BeanUtils;
+import org.apache.commons.beanutils.ConvertUtils;
+import org.apache.commons.beanutils.converters.DateConverter;
+import org.apache.commons.beanutils.converters.BooleanConverter;
 
 import poly.com.dao.NewsDAO;
 import poly.com.dao.UsersDAO;
 import poly.com.dao.CategoriesDAO;
 import poly.com.dao.NewsletterDAO;
+
 import poly.com.model.Users;
 import poly.com.model.news;
+import poly.com.model.Newsletter;
+import poly.com.model.Category;
 
-@WebServlet(name = "ServletAdmin", urlPatterns = {"/admin", "/login", "/logout"})
+@WebServlet(name = "ServletAdmin",
+        urlPatterns = {"/admin", "/admin-categories", "/login", "/logout"})
 @MultipartConfig
 public class ServletAdmin extends HttpServlet {
     private static final long serialVersionUID = 1L;
@@ -33,20 +37,14 @@ public class ServletAdmin extends HttpServlet {
     private final CategoriesDAO categoriesDAO = new CategoriesDAO();
     private final NewsletterDAO newsletterDAO = new NewsletterDAO();
 
-    // ================== KHỞI TẠO STATIC ==================
-    // Đăng ký các bộ chuyển đổi cần thiết cho BeanUtils một lần duy nhất.
     static {
-        // 1. Cấu hình cho việc chuyển đổi ngày tháng
         DateConverter dateConverter = new DateConverter(null);
         dateConverter.setPattern("yyyy-MM-dd");
         ConvertUtils.register(dateConverter, Date.class);
-        
-        // 2. Cấu hình cho việc chuyển đổi giá trị Boolean
-        //    (Xử lý các chuỗi như "true", "false", "yes", "no", "on", "off")
+
         BooleanConverter booleanConverter = new BooleanConverter(null);
         ConvertUtils.register(booleanConverter, Boolean.class);
     }
-    // ======================================================
 
     // ================== GET ==================
     @Override
@@ -54,19 +52,16 @@ public class ServletAdmin extends HttpServlet {
             throws ServletException, IOException {
 
         setUTF8(req, resp);
-
         String uri = req.getRequestURI();
 
         // ---- LOGOUT ----
         if (uri.endsWith("/logout")) {
             HttpSession session = req.getSession(false);
             if (session != null) session.invalidate();
-
             Cookie c = new Cookie("JSESSIONID", "");
             c.setMaxAge(0);
             c.setPath(req.getContextPath().isEmpty() ? "/" : req.getContextPath());
             resp.addCookie(c);
-
             resp.sendRedirect(req.getContextPath() + "/users?view=list");
             return;
         }
@@ -90,44 +85,149 @@ public class ServletAdmin extends HttpServlet {
         addNoCache(resp);
 
         final boolean isAdmin = Boolean.TRUE.equals(me.getRole());
-        final String action = param(req, "action", isAdmin ? "dashboard" : "list");
+        final boolean isCategoryRoute = uri.contains("/admin-categories");
         final String id = req.getParameter("id");
 
         try {
+            if (isCategoryRoute) {
+                // ========== /admin-categories ==========
+                if (!isAdmin) { resp.sendError(HttpServletResponse.SC_FORBIDDEN); return; }
+                String action = param(req, "action", "list");
+
+                switch (action) {
+                    case "edit": {
+                        Category editing = null;
+                        if (id != null && !id.isBlank()) {
+                            editing = categoriesDAO.selectById(id);
+                            if (editing == null) req.setAttribute("message", "Không tìm thấy loại #" + id);
+                        }
+                        forwardCategoryForm(req, resp, editing);
+                        break;
+                    }
+                    case "delete": {
+                        if (id != null && !id.isBlank()) {
+                            try {
+                                categoriesDAO.delete(id);
+                                req.setAttribute("message", "Đã xoá loại: " + id);
+                            } catch (Exception ex) {
+                                req.setAttribute("message", "Xoá thất bại: " + ex.getMessage());
+                            }
+                        }
+                        forwardCategoryList(req, resp);
+                        break;
+                    }
+                    case "list":
+                    default: {
+                        forwardCategoryList(req, resp);
+                        break;
+                    }
+                }
+                return;
+            }
+
+            // ========== /admin ==========
+            String action = param(req, "action", isAdmin ? "dashboard" : "list");
+
             switch (action) {
-                // ====== Menu chỉ dành cho Admin ======
-                case "dashboard" -> {
+                case "dashboard": {
                     if (!isAdmin) { resp.sendRedirect(req.getContextPath() + "/admin?action=list"); return; }
                     forwardDashboard(req, resp);
-                }
-                case "categories" -> {
-                    if (!isAdmin) { resp.sendError(HttpServletResponse.SC_FORBIDDEN); return; }
-                    forwardCategoryList(req, resp);
-                }
-                case "users" -> {
-                    if (!isAdmin) { resp.sendError(HttpServletResponse.SC_FORBIDDEN); return; }
-                    forwardUserList(req, resp);
-                }
-                case "newsletters" -> {
-                    if (!isAdmin) { resp.sendError(HttpServletResponse.SC_FORBIDDEN); return; }
-                    forwardNewsletterList(req, resp);
+                    break;
                 }
 
-                // ====== NEWS CRUD (GET) ======
-                case "edit" -> {
+                // alias cũ cho Categories
+                case "categories": {
+                    if (!isAdmin) { resp.sendError(HttpServletResponse.SC_FORBIDDEN); return; }
+                    resp.sendRedirect(req.getContextPath() + "/admin-categories?action=list");
+                    break;
+                }
+
+                // ===== USERS =====
+                case "users": {
+                    if (!isAdmin) { resp.sendError(HttpServletResponse.SC_FORBIDDEN); return; }
+                    forwardUserList(req, resp);
+                    break;
+                }
+                case "users-edit": {
+                    if (!isAdmin) { resp.sendError(HttpServletResponse.SC_FORBIDDEN); return; }
+                    Users editing = null;
                     if (id != null && !id.isBlank()) {
-                        news n = newsDAO.selectById(id);
-                        if (n == null) {
-                            req.setAttribute("message", "Không tìm thấy bản tin #" + id);
-                        } else if (!isAdmin && !me.getId().equals(n.getIdAuthor())) {
-                            req.setAttribute("message", "Bạn không có quyền sửa bản tin này.");
-                        } else {
-                            req.setAttribute("newsEditing", n);
+                        editing = usersDAO.selectById(id);
+                        if (editing == null) req.setAttribute("message", "Không tìm thấy người dùng #" + id);
+                    }
+                    forwardUserForm(req, resp, editing);
+                    break;
+                }
+                case "users-delete": {
+                    if (!isAdmin) { resp.sendError(HttpServletResponse.SC_FORBIDDEN); return; }
+                    if (id != null && !id.isBlank()) {
+                        try {
+                            usersDAO.delete(id);
+                            req.setAttribute("message", "Đã xoá người dùng: " + id);
+                        } catch (Exception ex) {
+                            req.setAttribute("message", "Xoá thất bại: " + ex.getMessage());
                         }
                     }
-                    forwardNewsList(req, resp, me, isAdmin);
+                    forwardUserList(req, resp);
+                    break;
                 }
-                case "delete" -> {
+
+                // ===== NEWSLETTERS =====
+                case "newsletters": {
+                    if (!isAdmin) { resp.sendError(HttpServletResponse.SC_FORBIDDEN); return; }
+                    forwardNewsletterList(req, resp);
+                    break;
+                }
+                case "newsletters-edit": {
+                    if (!isAdmin) { resp.sendError(HttpServletResponse.SC_FORBIDDEN); return; }
+                    String email = req.getParameter("email");
+                    if (email != null && !email.isBlank()) {
+                        Newsletter n = newsletterDAO.selectById(email);
+                        if (n == null) req.setAttribute("message", "Không tìm thấy email: " + email);
+                        else req.setAttribute("newsletterEditing", n);
+                    }
+                    forwardNewsletterForm(req, resp);
+                    break;
+                }
+                case "newsletters-delete": {
+                    if (!isAdmin) { resp.sendError(HttpServletResponse.SC_FORBIDDEN); return; }
+                    String email = req.getParameter("email");
+                    if (email != null && !email.isBlank()) {
+                        try {
+                            newsletterDAO.delete(email);
+                            req.setAttribute("message", "Đã xoá: " + email);
+                        } catch (Exception ex) {
+                            req.setAttribute("message", "Xoá thất bại: " + ex.getMessage());
+                        }
+                    }
+                    forwardNewsletterList(req, resp);
+                    break;
+                }
+
+                // ===== NEWS =====
+                case "news-edit": { // mở form tạo mới
+                    forwardNewsForm(req, resp, null, isAdmin);
+                    break;
+                }
+                case "edit": { // mở form sửa theo id (giữ tương thích với news-list cũ)
+                    news n = null;
+                    if (id != null && !id.isBlank()) {
+                        n = newsDAO.selectById(id);
+                        if (n == null) {
+                            req.setAttribute("message", "Không tìm thấy bản tin #" + id);
+                            forwardNewsList(req, resp, me, isAdmin);
+                            return;
+                        }
+                        if (!isAdmin && !me.getId().equals(n.getIdAuthor())) {
+                            req.setAttribute("message", "Bạn không có quyền sửa bản tin này.");
+                            forwardNewsList(req, resp, me, isAdmin);
+                            return;
+                        }
+                    }
+                    forwardNewsForm(req, resp, n, isAdmin);
+                    break;
+                }
+                case "delete": {
                     if (id != null && !id.isBlank()) {
                         news n = newsDAO.selectById(id);
                         if (n == null) {
@@ -144,50 +244,28 @@ public class ServletAdmin extends HttpServlet {
                         }
                     }
                     forwardNewsList(req, resp, me, isAdmin);
-                }
-             // ====== USERS CRUD (GET) ======
-                case "users-edit" -> {
-                    if (!isAdmin) { resp.sendError(HttpServletResponse.SC_FORBIDDEN); return; }
-                    if (id != null && !id.isBlank()) {
-                        Users userToEdit = usersDAO.selectById(id);
-                        if (userToEdit != null) {
-                            req.setAttribute("userEditing", userToEdit);
-                        } else {
-                            req.setAttribute("message", "Không tìm thấy người dùng #" + id);
-                        }
-                    }
-                    forwardUserList(req, resp);
-                }
-                case "users-delete" -> {
-                    if (!isAdmin) { resp.sendError(HttpServletResponse.SC_FORBIDDEN); return; }
-                    if (id != null && !id.isBlank()) {
-                        try {
-                            usersDAO.delete(id);
-                            req.setAttribute("message", "Xóa người dùng thành công");
-                        } catch (Exception ex) {
-                            req.setAttribute("message", "Xóa thất bại: " + ex.getMessage());
-                        }
-                    }
-                    forwardUserList(req, resp);
+                    break;
                 }
 
-                // ====== NEWS LIST (default) ======
-                default -> forwardNewsList(req, resp, me, isAdmin);
+                case "list":
+                default: {
+                    forwardNewsList(req, resp, me, isAdmin);
+                    break;
+                }
             }
+
         } catch (Exception ex) {
             req.setAttribute("message", "Lỗi: " + ex.getMessage());
-            forwardNewsList(req, resp, me, isAdmin);
+            if (isCategoryRoute) forwardCategoryList(req, resp);
+            else forwardNewsList(req, resp, me, isAdmin);
         }
     }
-
-
 
     // ================== POST ==================
     @Override
     protected void doPost(HttpServletRequest req, HttpServletResponse resp)
             throws ServletException, IOException {
         setUTF8(req, resp);
-
         String uri = req.getRequestURI();
 
         // ---- LOGIN (POST) ----
@@ -213,44 +291,72 @@ public class ServletAdmin extends HttpServlet {
             }
         }
 
-        // ---- ADMIN CRUD (POST) – cần đăng nhập ----
+        // ---- ADMIN cần đăng nhập ----
         Users me = (Users) req.getSession().getAttribute("user");
         if (me == null) {
             resp.sendRedirect(req.getContextPath() + "/login");
             return;
         }
         addNoCache(resp);
+
         final boolean isAdmin = Boolean.TRUE.equals(me.getRole());
-
+        final boolean isCategoryRoute = uri.contains("/admin-categories");
         String action = param(req, "action", "");
+
         try {
-            switch (action) {
-            case "create" -> {
-                news n = new news();
-                BeanUtils.populate(n, req.getParameterMap());
-
-                // KHÔNG yêu cầu Id, DB tự tăng
-                n.setId(null);
-
-                if (n.getPostedDate() == null) n.setPostedDate(new Date());
-                if (n.getViewCount() == null)  n.setViewCount(0);
-                n.setHome(req.getParameter("home") != null);
-
-                if (!isAdmin) {
-                    n.setIdAuthor(me.getId());
-                } else if (n.getIdAuthor() == null || n.getIdAuthor().isBlank()) {
-                    n.setIdAuthor(me.getId());
+            if (isCategoryRoute) {
+                if (!isAdmin) { resp.sendError(HttpServletResponse.SC_FORBIDDEN); return; }
+                switch (action) {
+                    case "create": {
+                        Category c = new Category();
+                        BeanUtils.populate(c, req.getParameterMap());
+                        categoriesDAO.insert(c);
+                        req.setAttribute("message", "Thêm loại tin thành công!");
+                        forwardCategoryList(req, resp);
+                        break;
+                    }
+                    case "update": {
+                        Category c = new Category();
+                        BeanUtils.populate(c, req.getParameterMap());
+                        categoriesDAO.update(c);
+                        req.setAttribute("message", "Cập nhật loại tin thành công!");
+                        forwardCategoryList(req, resp);
+                        break;
+                    }
+                    default: {
+                        forwardCategoryList(req, resp);
+                        break;
+                    }
                 }
-
-                String img = handleUpload(req, "image");
-                if (img != null) n.setImage(img);
-
-                newsDAO.insert(n);
-                req.setAttribute("message", "Thêm thành công");
-                forwardNewsList(req, resp, me, isAdmin);
+                return;
             }
 
-                case "update" -> {
+            // ===== /admin actions =====
+            switch (action) {
+                // ===== NEWS =====
+                case "create": {
+                    news n = new news();
+                    BeanUtils.populate(n, req.getParameterMap());
+                    n.setId(null);
+                    if (n.getPostedDate() == null) n.setPostedDate(new Date());
+                    if (n.getViewCount() == null)  n.setViewCount(0);
+                    n.setHome(req.getParameter("home") != null);
+
+                    if (!isAdmin) {
+                        n.setIdAuthor(me.getId());
+                    } else if (n.getIdAuthor() == null || n.getIdAuthor().isBlank()) {
+                        n.setIdAuthor(me.getId());
+                    }
+
+                    String img = handleUpload(req, "image");
+                    if (img != null) n.setImage(img);
+
+                    newsDAO.insert(n);
+                    req.setAttribute("message", "Thêm thành công");
+                    forwardNewsList(req, resp, me, isAdmin);
+                    break;
+                }
+                case "update": {
                     String id = req.getParameter("id");
                     if (id == null || id.isBlank())
                         throw new IllegalArgumentException("Thiếu id");
@@ -258,7 +364,6 @@ public class ServletAdmin extends HttpServlet {
                     news n = newsDAO.selectById(id);
                     if (n == null) throw new IllegalArgumentException("Không tìm thấy bản tin #" + id);
 
-                    // PV chỉ được sửa bài của mình
                     if (!isAdmin && !me.getId().equals(n.getIdAuthor())) {
                         req.setAttribute("message", "Bạn không có quyền cập nhật bản tin này.");
                         forwardNewsList(req, resp, me, isAdmin);
@@ -269,8 +374,7 @@ public class ServletAdmin extends HttpServlet {
                     if (n.getPostedDate() == null) n.setPostedDate(new Date());
                     if (n.getViewCount() == null)  n.setViewCount(0);
                     n.setHome(req.getParameter("home") != null);
-
-                    if (!isAdmin) n.setIdAuthor(me.getId()); // tránh đổi tác giả khi PV
+                    if (!isAdmin) n.setIdAuthor(me.getId());
 
                     String img = handleUpload(req, "image");
                     if (img != null && !img.isBlank()) n.setImage(img);
@@ -278,62 +382,73 @@ public class ServletAdmin extends HttpServlet {
                     newsDAO.update(n);
                     req.setAttribute("message", "Sửa thành công");
                     forwardNewsList(req, resp, me, isAdmin);
+                    break;
                 }
-             // ====== USERS CRUD (POST) ======
-                case "users-create" -> {
-                    if (!isAdmin) { resp.sendError(HttpServletResponse.SC_FORBIDDEN); return; }
-                    try {
-                        Users newUser = new Users();
-                        BeanUtils.populate(newUser, req.getParameterMap());
-                        // Ghi đè lại giá trị role để đảm bảo tính đúng đắn từ checkbox
-                        newUser.setRole(req.getParameter("role") != null);
-                        
-                        usersDAO.insert(newUser);
-                        req.setAttribute("message", "Thêm người dùng mới thành công!");
-                    } catch (Exception e) {
-                        req.setAttribute("message", "Thêm thất bại: " + e.getMessage());
-                        // In ra lỗi để debug
-                        e.printStackTrace();
-                    }
-                    forwardUserList(req, resp);
-                }
-                case "users-update" -> {
-                    if (!isAdmin) { resp.sendError(HttpServletResponse.SC_FORBIDDEN); return; }
-                    try {
-                        Users existingUser = new Users();
-                        BeanUtils.populate(existingUser, req.getParameterMap());
-                        // Ghi đè lại giá trị role
-                        existingUser.setRole(req.getParameter("role") != null);
-                        
-                        String password = req.getParameter("password");
-                        if (password == null || password.isBlank()) {
-                            Users oldUser = usersDAO.selectById(existingUser.getId());
-                            if (oldUser != null) {
-                                existingUser.setPassword(oldUser.getPassword());
-                            }
-                        }
 
-                        usersDAO.update(existingUser);
-                        req.setAttribute("message", "Cập nhật người dùng thành công!");
-                    } catch (Exception e) {
-                        req.setAttribute("message", "Cập nhật thất bại: " + e.getMessage());
-                        e.printStackTrace();
-                    }
+                // ===== USERS =====
+                case "users-create": {
+                    if (!isAdmin) { resp.sendError(HttpServletResponse.SC_FORBIDDEN); return; }
+                    Users newUser = new Users();
+                    BeanUtils.populate(newUser, req.getParameterMap());
+                    newUser.setRole(req.getParameter("role") != null);
+                    usersDAO.insert(newUser);
+                    req.setAttribute("message", "Thêm người dùng mới thành công!");
                     forwardUserList(req, resp);
+                    break;
                 }
-                
-                default -> forwardNewsList(req, resp, me, isAdmin);
+                case "users-update": {
+                    if (!isAdmin) { resp.sendError(HttpServletResponse.SC_FORBIDDEN); return; }
+                    Users existingUser = new Users();
+                    BeanUtils.populate(existingUser, req.getParameterMap());
+                    existingUser.setRole(req.getParameter("role") != null);
+                    String password = req.getParameter("password");
+                    if (password == null || password.isBlank()) {
+                        Users oldUser = usersDAO.selectById(existingUser.getId());
+                        if (oldUser != null) existingUser.setPassword(oldUser.getPassword());
+                    }
+                    usersDAO.update(existingUser);
+                    req.setAttribute("message", "Cập nhật người dùng thành công!");
+                    forwardUserList(req, resp);
+                    break;
+                }
+
+                // ===== NEWSLETTERS =====
+                case "newsletters-create": {
+                    if (!isAdmin) { resp.sendError(HttpServletResponse.SC_FORBIDDEN); return; }
+                    String email = req.getParameter("email");
+                    boolean enabled = req.getParameter("enabled") != null;
+                    Newsletter n = new Newsletter();
+                    n.setEmail(email);
+                    n.setEnabled(enabled);
+                    newsletterDAO.insert(n);
+                    req.setAttribute("message", "Thêm email thành công!");
+                    forwardNewsletterList(req, resp);
+                    break;
+                }
+                case "newsletters-update": {
+                    if (!isAdmin) { resp.sendError(HttpServletResponse.SC_FORBIDDEN); return; }
+                    String email = req.getParameter("email");
+                    boolean enabled = req.getParameter("enabled") != null;
+                    Newsletter n = newsletterDAO.selectById(email);
+                    if (n == null) throw new IllegalArgumentException("Không tìm thấy: " + email);
+                    n.setEnabled(enabled);
+                    newsletterDAO.update(n);
+                    req.setAttribute("message", "Cập nhật thành công!");
+                    forwardNewsletterList(req, resp);
+                    break;
+                }
+
+                default: {
+                    forwardNewsList(req, resp, me, isAdmin);
+                    break;
+                }
             }
-            
-            
         } catch (Exception e) {
             req.setAttribute("message", "Lỗi: " + e.getMessage());
-            e.printStackTrace();
-            forwardNewsList(req, resp, me, isAdmin);
+            if (isCategoryRoute) forwardCategoryList(req, resp);
+            else forwardNewsList(req, resp, me, isAdmin);
         }
-        
     }
-    
 
     // ================== FORWARD HELPERS ==================
     private void forwardDashboard(HttpServletRequest req, HttpServletResponse resp)
@@ -350,6 +465,13 @@ public class ServletAdmin extends HttpServlet {
         req.getRequestDispatcher("/WEB-INF/views/admin/category-list.jsp").forward(req, resp);
     }
 
+    private void forwardCategoryForm(HttpServletRequest req, HttpServletResponse resp, Category editing)
+            throws ServletException, IOException {
+        attachStats(req);
+        if (editing != null) req.setAttribute("categoryEditing", editing);
+        req.getRequestDispatcher("/WEB-INF/views/admin/category-form.jsp").forward(req, resp);
+    }
+
     private void forwardUserList(HttpServletRequest req, HttpServletResponse resp)
             throws ServletException, IOException {
         attachStats(req);
@@ -357,53 +479,58 @@ public class ServletAdmin extends HttpServlet {
         req.getRequestDispatcher("/WEB-INF/views/admin/user-list.jsp").forward(req, resp);
     }
 
+    private void forwardUserForm(HttpServletRequest req, HttpServletResponse resp, Users editing)
+            throws ServletException, IOException {
+        attachStats(req);
+        if (editing != null) req.setAttribute("userEditing", editing);
+        req.getRequestDispatcher("/WEB-INF/views/admin/user-form.jsp").forward(req, resp);
+    }
+
     private void forwardNewsletterList(HttpServletRequest req, HttpServletResponse resp)
             throws ServletException, IOException {
         attachStats(req);
-        // đồng bộ với newsletter-list.jsp (dùng newsletterList)
-        req.setAttribute("newsletterList", newsletterDAO.selectAll());
+        req.setAttribute("subs", newsletterDAO.selectAll());
         req.getRequestDispatcher("/WEB-INF/views/admin/newsletter-list.jsp").forward(req, resp);
     }
 
-    // Lọc theo quyền: admin = all; PV = bài của tôi
+    private void forwardNewsletterForm(HttpServletRequest req, HttpServletResponse resp)
+            throws ServletException, IOException {
+        attachStats(req);
+        req.getRequestDispatcher("/WEB-INF/views/admin/newsletter-form.jsp").forward(req, resp);
+    }
+
+    private void forwardNewsForm(HttpServletRequest req, HttpServletResponse resp, news editing, boolean isAdmin)
+            throws ServletException, IOException {
+        attachStats(req);
+        req.setAttribute("isAdmin", isAdmin);
+        req.setAttribute("categoriesList", categoriesDAO.selectAll());
+        req.setAttribute("usersList", usersDAO.selectAll());
+        if (editing != null) req.setAttribute("newsEditing", editing);
+        req.getRequestDispatcher("/WEB-INF/views/admin/news-form.jsp").forward(req, resp);
+    }
+
     private void forwardNewsList(HttpServletRequest req, HttpServletResponse resp, Users me, boolean isAdmin)
             throws ServletException, IOException {
         attachStats(req);
         req.setAttribute("isAdmin", isAdmin);
-        // cần cho combobox loại trong form tin tức
         req.setAttribute("categoriesList", categoriesDAO.selectAll());
-
-        if (isAdmin) {
-            req.setAttribute("newsList", newsDAO.selectAll());
-        } else {
-            // Yêu cầu NewsDAO có method: public List<news> selectByAuthor(String authorId)
-            req.setAttribute("newsList", newsDAO.selectByAuthor(me.getId()));
-        }
+        if (isAdmin) req.setAttribute("newsList", newsDAO.selectAll());
+        else         req.setAttribute("newsList", newsDAO.selectByAuthor(me.getId()));
         req.getRequestDispatcher("/WEB-INF/views/admin/news-list.jsp").forward(req, resp);
     }
 
-    // Giữ bản cũ cho các chỗ gọi chưa chỉnh
-    private void forwardNewsList(HttpServletRequest req, HttpServletResponse resp)
-            throws ServletException, IOException {
-        Users me = (Users) req.getSession().getAttribute("user");
-        boolean isAdmin = me != null && Boolean.TRUE.equals(me.getRole());
-        forwardNewsList(req, resp, me, isAdmin);
-    }
-
-    /** Gắn các thống kê dùng chung cho mọi trang admin */
     private void attachStats(HttpServletRequest req) {
         long news = newsDAO.countAll();
         long cats = categoriesDAO.countAll();
         long users = usersDAO.countAll();
         long subs = newsletterDAO.countAll();
 
-        // Bộ tên total*
         req.setAttribute("totalNews",        news);
         req.setAttribute("totalCategories",  cats);
         req.setAttribute("totalUsers",       users);
         req.setAttribute("totalSubscribers", subs);
 
-        // Alias cho các JSP đang dùng count*
+        // alias cũ
         req.setAttribute("countNews",        news);
         req.setAttribute("countCategories",  cats);
         req.setAttribute("countUsers",       users);
@@ -422,7 +549,7 @@ public class ServletAdmin extends HttpServlet {
         resp.setContentType("text/html; charset=UTF-8");
     }
 
-    /** Lưu file upload vào /uploads và trả về đường dẫn tương đối (uploads/xxx) */
+    /** Lưu file upload và trả về đường dẫn tương đối */
     private String handleUpload(HttpServletRequest req, String partName)
             throws IOException, ServletException {
         Part p = req.getPart(partName);

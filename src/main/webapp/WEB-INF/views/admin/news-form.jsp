@@ -25,7 +25,6 @@
           style="display:grid; gap:12px; max-width:780px">
       <input type="hidden" name="action" value="${isEdit ? 'update' : 'create'}"/>
 
-      <!-- Id: KHÔNG hiển thị khi tạo mới vì DB IDENTITY; khi sửa, hiển thị readonly và giữ tên 'id' để servlet nhận -->
       <c:if test="${isEdit}">
         <label for="id">Id</label>
         <input id="id" name="id" type="text" value="${n.id}" readonly />
@@ -38,7 +37,6 @@
       <label for="content">Nội dung</label>
       <textarea id="content" name="content" rows="8" placeholder="HTML hoặc văn bản thuần...">${isEdit ? n.content : ''}</textarea>
 
-      <!-- Ảnh hiện tại (nếu có) -->
       <c:if test="${isEdit and not empty n.image}">
         <div>
           <small>Ảnh hiện tại:</small><br/>
@@ -50,7 +48,6 @@
       <label for="image">Hình ảnh/Video (upload mới, tùy chọn)</label>
       <input id="image" name="image" type="file" accept="image/*,video/*" />
 
-      <!-- Ngày đăng -->
       <label for="postedDate">Ngày đăng</label>
       <c:set var="postedValue" value=""/>
       <c:if test="${isEdit and not empty n.postedDate}">
@@ -58,10 +55,8 @@
       </c:if>
       <input id="postedDate" name="postedDate" type="date" value="${postedValue}" />
 
-      <!-- TÁC GIẢ -->
       <label for="idAuthor">Tác giả</label>
       <c:choose>
-        <!-- Admin: cho phép nhập/chọn. Nếu usersList có sẵn, dùng datalist hỗ trợ chọn nhanh -->
         <c:when test="${isAdmin}">
           <input id="idAuthor" name="idAuthor" type="text"
                  value="${isEdit ? n.idAuthor : ''}" placeholder="Mã phóng viên (vd: user1)" list="authorsList"/>
@@ -74,8 +69,6 @@
           </c:if>
           <small style="opacity:.7">Bỏ trống sẽ tự gán bạn là tác giả.</small>
         </c:when>
-
-        <!-- Phóng viên: khoá input, hiển thị Id & gửi hidden để server nhận -->
         <c:otherwise>
           <input type="text" value="${sessionScope.user.id}" readonly />
           <input type="hidden" name="idAuthor" value="${sessionScope.user.id}" />
@@ -83,12 +76,10 @@
         </c:otherwise>
       </c:choose>
 
-      <!-- Lượt xem -->
       <label for="viewCount">Lượt xem</label>
       <input id="viewCount" name="viewCount" type="number" min="0"
              value="${isEdit ? (n.viewCount != null ? n.viewCount : 0) : 0}" />
 
-      <!-- LOẠI TIN: ưu tiên combobox nếu có categoriesList; nếu không, fallback sang input -->
       <label for="categoryId">Loại tin</label>
       <c:choose>
         <c:when test="${not empty cats}">

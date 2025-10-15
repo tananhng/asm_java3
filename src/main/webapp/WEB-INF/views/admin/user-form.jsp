@@ -1,16 +1,17 @@
 <%@ page contentType="text/html; charset=UTF-8" pageEncoding="UTF-8"%>
-<%-- KHÔNG khai báo lại taglib; header.jsp đã có c/fmt --%>
+<%@ taglib prefix="c"   uri="jakarta.tags.core" %>
+<%@ taglib prefix="fmt" uri="jakarta.tags.fmt" %>
 
 <jsp:include page="/WEB-INF/views/layout/header.jsp" />
 
-<c:set var="isEdit" value="${not empty newsEditing}" />
-<c:set var="n" value="${isEdit ? newsEditing : null}" />
+<c:set var="isEdit" value="${not empty userEditing}" />
+<c:set var="u"      value="${isEdit ? userEditing : null}" />
 
 <div class="layout-admin">
   <jsp:include page="/WEB-INF/views/layout/sidebar.jsp" />
 
   <section class="page">
-    <h2>${isEdit ? 'Sửa' : 'Thêm'} Tin tức</h2>
+    <h2>${isEdit ? 'Sửa' : 'Thêm'} Người dùng</h2>
 
     <c:if test="${not empty message}">
       <div class="alert" style="margin:.5rem 0 1rem; padding:.75rem 1rem; border:1px solid #fee2e2; background:#fef2f2; color:#991b1b; border-radius:8px;">
@@ -18,60 +19,78 @@
       </div>
     </c:if>
 
-    <form class="pure-form" action="<c:url value='/admin'/>" method="post" enctype="multipart/form-data"
-          style="display:grid; gap:12px; max-width:780px">
-      <input type="hidden" name="action" value="${isEdit ? 'update' : 'create'}"/>
+    <form action="<c:url value='/admin'/>" method="post" style="display:grid; gap:12px; max-width:780px">
+      <input type="hidden" name="action" value="${isEdit ? 'users-update' : 'users-create'}"/>
 
-      <!-- Id: String -->
-      <label for="id">Id</label>
-      <input id="id" name="id" type="text"
-             value="${isEdit ? n.id : ''}"
-             ${isEdit ? 'readonly' : 'required'}
-             placeholder="VD: N001" />
+      <!-- Id -->
+      <div>
+        <label for="id">Mã đăng nhập (Id)</label>
+        <input id="id" name="id" type="text"
+               value="${isEdit ? u.id : ''}"
+               ${isEdit ? 'readonly' : 'required'} />
+      </div>
 
-      <label for="title">Tiêu đề</label>
-      <input id="title" name="title" type="text" required
-             value="${isEdit ? n.title : ''}" placeholder="Tiêu đề bản tin" />
+      <!-- Password -->
+      <div>
+        <label for="password">Mật khẩu</label>
+        <input id="password" name="password" type="password"
+               placeholder="${isEdit ? 'Để trống nếu không đổi' : ''}"
+               ${isEdit ? '' : 'required'} />
+      </div>
 
-      <label for="content">Nội dung</label>
-      <textarea id="content" name="content" rows="8" placeholder="HTML hoặc văn bản thuần...">${isEdit ? n.content : ''}</textarea>
+      <!-- Fullname -->
+      <div>
+        <label for="fullname">Họ và tên</label>
+        <input id="fullname" name="fullname" type="text" required
+               value="${isEdit ? u.fullname : ''}" style="width:100%"/>
+      </div>
 
-      <c:if test="${isEdit && not empty n.image}">
+      <!-- Email + Mobile -->
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px">
         <div>
-          <small>Ảnh hiện tại:</small><br/>
-          <img src="${pageContext.request.contextPath}/${n.image}" alt="${n.title}" style="max-width:240px; height:auto; border:1px solid #eee; border-radius:8px;"/>
+          <label for="email">Email</label>
+          <input id="email" name="email" type="email" value="${isEdit ? u.email : ''}"/>
         </div>
-      </c:if>
-      <label for="image">Hình ảnh/Video (upload mới, tùy chọn)</label>
-      <input id="image" name="image" type="file" accept="image/*,video/*" />
+        <div>
+          <label for="mobile">Điện thoại</label>
+          <input id="mobile" name="mobile" type="text" value="${isEdit ? u.mobile : ''}"/>
+        </div>
+      </div>
 
-      <label for="postedDate">Ngày đăng</label>
-      <c:if test="${isEdit and not empty n.postedDate}">
-        <fmt:formatDate var="postedValue" value="${n.postedDate}" pattern="yyyy-MM-dd"/>
-      </c:if>
-      <input id="postedDate" name="postedDate" type="date" value="${postedValue}" />
+      <!-- Birthday + Gender -->
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px">
+        <div>
+          <label for="birthday">Ngày sinh</label>
+          <c:set var="birthdayValue" value=""/>
+          <c:if test="${isEdit and not empty u.birthday}">
+            <fmt:formatDate var="birthdayValue" value="${u.birthday}" pattern="yyyy-MM-dd"/>
+          </c:if>
+          <input id="birthday" name="birthday" type="date" value="${birthdayValue}"/>
+        </div>
+        <div>
+          <label>Giới tính</label>
+          <div style="display:flex; gap:12px; align-items:center">
+            <label><input type="radio" name="gender" value="true"
+              <c:if test="${(isEdit and u.gender == true) or (not isEdit)}">checked="checked"</c:if> /> Nam</label>
+            <label><input type="radio" name="gender" value="false"
+              <c:if test="${isEdit and u.gender == false}">checked="checked"</c:if> /> Nữ</label>
+          </div>
+        </div>
+      </div>
 
-      <label for="idAuthor">Tác giả (mã phóng viên)</label>
-      <input id="idAuthor" name="idAuthor" type="text"
-             value="${isEdit ? n.idAuthor : ''}" placeholder="VD: PV001" />
+      <!-- Role -->
+      <div>
+        <label>
+          <input type="checkbox" name="role"
+            <c:if test="${isEdit and u.role}">checked="checked"</c:if> />
+          Quản trị
+        </label>
+      </div>
 
-      <label for="viewCount">Lượt xem</label>
-      <input id="viewCount" name="viewCount" type="number" min="0"
-             value="${isEdit ? (n.viewCount != null ? n.viewCount : 0) : 0}" />
-
-      <label for="categoryId">Mã loại tin</label>
-      <input id="categoryId" name="categoryId" type="text" required
-             value="${isEdit ? n.categoryId : ''}" placeholder="VD: cong-nghe / the-thao / thoi-su ..." />
-
-      <label>
-        <input type="checkbox" name="home"
-          <c:if test="${isEdit and n.home}">checked="checked"</c:if> />
-        Trang nhất (hiển thị trên trang chủ)
-      </label>
-
+      <!-- Actions -->
       <div class="form-actions" style="margin-top:8px; display:flex; gap:10px">
-        <button type="submit" class="btn">${isEdit ? 'Cập nhật' : 'Thêm mới'}</button>
-        <a class="btn" href="<c:url value='/admin'><c:param name='action' value='list'/></c:url>">Quay lại</a>
+        <button type="submit" class="btn">${isEdit ? 'Cập nhật' : 'Tạo mới'}</button>
+        <a class="btn" href="<c:url value='/admin'><c:param name='action' value='users'/></c:url>">Quay lại</a>
       </div>
     </form>
   </section>

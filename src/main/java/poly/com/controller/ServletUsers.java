@@ -6,7 +6,6 @@ import jakarta.servlet.http.*;
 import java.io.IOException;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Objects;
 import java.util.regex.Pattern;
 
 import poly.com.dao.NewsDAO;
@@ -16,7 +15,6 @@ import poly.com.model.news;
 public class ServletUsers extends HttpServlet {
     private static final long serialVersionUID = 1L;
 
-    // ===== View paths =====
     private static final String VIEW_HOME       = "/WEB-INF/views/public/home.jsp";
     private static final String VIEW_CATEGORY   = "/WEB-INF/views/public/category-list.jsp";
     private static final String VIEW_DETAIL     = "/WEB-INF/views/public/news-detail.jsp";
@@ -52,26 +50,31 @@ public class ServletUsers extends HttpServlet {
 
     // ========= Views =========
 
+    /** Trang chủ: dùng đúng danh sách Trang nhất (Home=1) */
     private void showList(HttpServletRequest req, HttpServletResponse resp)
             throws ServletException, IOException {
         try {
-            req.setAttribute("list",          newsDAO.selectAll());
-            req.setAttribute("listTop5View",  newsDAO.selectTopNewsByView());
-            req.setAttribute("listTop5Date",  newsDAO.selectTopNewsByDate());
+            req.setAttribute("homeLatest", newsDAO.selectHomeLatest(6));
+            req.setAttribute("homeMost",   newsDAO.selectHomeMostViewed(6));
+
+            // Nếu muốn thêm danh sách tổng quát (không lọc Home)
+            req.setAttribute("latestAll", newsDAO.latest(10));
+            req.setAttribute("mostAll",   newsDAO.mostViewed(10));
         } catch (Exception e) {
-            req.setAttribute("list",          List.of());
-            req.setAttribute("listTop5View",  List.of());
-            req.setAttribute("listTop5Date",  List.of());
+            req.setAttribute("homeLatest", List.of());
+            req.setAttribute("homeMost",   List.of());
+            req.setAttribute("latestAll",  List.of());
+            req.setAttribute("mostAll",    List.of());
             req.setAttribute("message", "Không tải được dữ liệu: " + e.getMessage());
         }
 
+        // “Đã xem gần đây”
         HttpSession session = req.getSession(false);
         if (session != null) {
             @SuppressWarnings("unchecked")
             LinkedList<news> recent = (LinkedList<news>) session.getAttribute("recent");
             req.setAttribute("recent", recent);
         }
-
         req.getRequestDispatcher(VIEW_HOME).forward(req, resp);
     }
 
@@ -82,67 +85,61 @@ public class ServletUsers extends HttpServlet {
             List<news> list = (cat.isBlank()) ? newsDAO.selectAll() : newsDAO.selectByCategory(cat);
             req.setAttribute("category", cat);
             req.setAttribute("list", list);
-            req.setAttribute("listTop5View", newsDAO.selectTopNewsByView());
-            req.setAttribute("listTop5Date", newsDAO.selectTopNewsByDate());
+
+            // Sidebar: vẫn ưu tiên block Trang nhất
+            req.setAttribute("homeMost",   newsDAO.selectHomeMostViewed(5));
+            req.setAttribute("homeLatest", newsDAO.selectHomeLatest(5));
         } catch (Exception e) {
             req.setAttribute("category", cat);
             req.setAttribute("list", List.of());
-            req.setAttribute("listTop5View", List.of());
-            req.setAttribute("listTop5Date", List.of());
+            req.setAttribute("homeMost",   List.of());
+            req.setAttribute("homeLatest", List.of());
             req.setAttribute("message", "Không tải được dữ liệu: " + e.getMessage());
         }
-
         req.getRequestDispatcher(VIEW_CATEGORY).forward(req, resp);
     }
 
     private void showDetail(HttpServletRequest req, HttpServletResponse resp)
             throws ServletException, IOException {
-
-        // Lấy id (String) và kiểm tra hợp lệ
         final String id = param(req, "id", "");
         if (id.isBlank()) {
             resp.sendRedirect(req.getContextPath() + "/users?view=list");
             return;
         }
 
-        // Lấy bản tin
         news n = newsDAO.selectById(id);
         if (n == null) {
             resp.sendRedirect(req.getContextPath() + "/users?view=list");
             return;
         }
 
-        // +1 view an toàn (UPDATE trực tiếp trên DB)
         try {
-            newsDAO.increaseView(id); // cần method này trong NewsDAO
-            // đồng bộ số hiển thị trên trang (không bắt buộc)
+            newsDAO.increaseView(id);
             n.setViewCount((n.getViewCount() == null ? 0 : n.getViewCount()) + 1);
-        } catch (Exception ignore) { /* giữ trang vẫn chạy */ }
+        } catch (Exception ignore) {}
 
-        // Lưu “đã xem gần đây” trong session (tối đa 5)
+        // recent in session (max 5)
         HttpSession session = req.getSession();
         @SuppressWarnings("unchecked")
         LinkedList<news> recent = (LinkedList<news>) session.getAttribute("recent");
         if (recent == null) recent = new LinkedList<>();
-        recent.removeIf(x -> java.util.Objects.equals(x.getId(), n.getId())); // loại trùng
+        recent.removeIf(x -> java.util.Objects.equals(x.getId(), n.getId()));
         recent.addFirst(n);
         while (recent.size() > 5) recent.removeLast();
         session.setAttribute("recent", recent);
 
-        // Sidebar lists
+        // Sidebar “Trang nhất”
         try {
-            req.setAttribute("listTop5View", newsDAO.selectTopNewsByView());
-            req.setAttribute("listTop5Date", newsDAO.selectTopNewsByDate());
+            req.setAttribute("homeMost",   newsDAO.selectHomeMostViewed(5));
+            req.setAttribute("homeLatest", newsDAO.selectHomeLatest(5));
         } catch (Exception e) {
-            req.setAttribute("listTop5View", java.util.List.of());
-            req.setAttribute("listTop5Date", java.util.List.of());
+            req.setAttribute("homeMost",   List.of());
+            req.setAttribute("homeLatest", List.of());
         }
 
-        // Forward sang chi tiết
         req.setAttribute("news", n);
         req.getRequestDispatcher(VIEW_DETAIL).forward(req, resp);
     }
-
 
     private void showNewsletter(HttpServletRequest req, HttpServletResponse resp)
             throws ServletException, IOException {
@@ -151,7 +148,6 @@ public class ServletUsers extends HttpServlet {
 
     // ========= Handlers =========
 
-    /** Xử lý submit email newsletter (Phase 1: lưu tạm trong session) */
     @SuppressWarnings("unchecked")
     private void handleNewsletterSubmit(HttpServletRequest req, HttpServletResponse resp)
             throws ServletException, IOException {
@@ -187,8 +183,7 @@ public class ServletUsers extends HttpServlet {
         if (email == null) return false;
         String e = email.trim();
         if (e.isEmpty()) return false;
-        return Pattern.compile("^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$")
-                      .matcher(e).matches();
+        return Pattern.compile("^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$").matcher(e).matches();
     }
 
     private static String param(HttpServletRequest req, String name, String def) {
