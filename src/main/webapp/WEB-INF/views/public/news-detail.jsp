@@ -2,7 +2,6 @@
 <%@ taglib prefix="c"   uri="jakarta.tags.core"%>
 <%@ taglib prefix="fmt" uri="jakarta.tags.fmt"%>
 
-
 <c:set var="cp" value="${pageContext.request.contextPath}" />
 
 <jsp:include page="/WEB-INF/views/layout/header.jsp" />
@@ -13,14 +12,14 @@
 
     <p class="meta">
       <small>
-        Ngày đăng:
+        <fmt:message key="detail.date"/>:
         <c:choose>
           <c:when test="${not empty news.postedDate}">
             <fmt:formatDate value="${news.postedDate}" pattern="dd/MM/yyyy HH:mm" />
           </c:when>
           <c:otherwise>—</c:otherwise>
         </c:choose>
-        · Lượt xem: ${news.viewCount}
+        · <fmt:message key="detail.views"/>: ${news.viewCount}
       </small>
     </p>
 
@@ -29,30 +28,48 @@
     </c:if>
 
     <div class="content">
-      <!-- Nếu content là HTML đã sanitize, cho phép render HTML -->
+      <!-- Nếu content đã được sanitize thì cho phép render HTML -->
       <c:out value="${news.content}" escapeXml="false"/>
     </div>
   </article>
 
   <aside class="sidebar" style="margin-top:2rem">
-    <h3>Bài hot</h3>
+    <!-- Bài hot -->
+    <h3><fmt:message key="detail.hot"/></h3>
     <ul>
-      <c:forEach var="n" items="${listTop5View}">
-        <li><a href="${cp}/users?view=detail&id=${n.id}">${n.title}</a></li>
-      </c:forEach>
-      <c:if test="${empty listTop5View}">
-        <li><em>Chưa có dữ liệu</em></li>
-      </c:if>
+      <c:choose>
+        <c:when test="${not empty homeMost}">
+          <c:forEach var="n" items="${homeMost}">
+            <c:url var="detailUrl" value="/users">
+              <c:param name="view" value="detail"/>
+              <c:param name="id"   value="${n.id}"/>
+            </c:url>
+            <li><a href="${detailUrl}">${n.title}</a></li>
+          </c:forEach>
+        </c:when>
+        <c:otherwise>
+          <li><em><fmt:message key="home.empty"/></em></li>
+        </c:otherwise>
+      </c:choose>
     </ul>
 
-    <h3>Mới nhất</h3>
+    <!-- Mới nhất -->
+    <h3><fmt:message key="detail.latest"/></h3>
     <ul>
-      <c:forEach var="n" items="${listTop5Date}">
-        <li><a href="${cp}/users?view=detail&id=${n.id}">${n.title}</a></li>
-      </c:forEach>
-      <c:if test="${empty listTop5Date}">
-        <li><em>Chưa có dữ liệu</em></li>
-      </c:if>
+      <c:choose>
+        <c:when test="${not empty homeLatest}">
+          <c:forEach var="n" items="${homeLatest}">
+            <c:url var="detailUrl" value="/users">
+              <c:param name="view" value="detail"/>
+              <c:param name="id"   value="${n.id}"/>
+            </c:url>
+            <li><a href="${detailUrl}">${n.title}</a></li>
+          </c:forEach>
+        </c:when>
+        <c:otherwise>
+          <li><em><fmt:message key="home.empty"/></em></li>
+        </c:otherwise>
+      </c:choose>
     </ul>
   </aside>
 </main>

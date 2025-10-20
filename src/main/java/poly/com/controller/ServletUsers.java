@@ -3,13 +3,19 @@ package poly.com.controller;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.*;
+
 import java.io.IOException;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Locale;
+import java.util.MissingResourceException;
+import java.util.ResourceBundle;
 import java.util.regex.Pattern;
 
+import jakarta.servlet.jsp.jstl.core.Config;
 import poly.com.dao.NewsDAO;
 import poly.com.model.news;
+import poly.com.utils.Utf8Control;
 
 @WebServlet(name = "ServletUsers", urlPatterns = {"/users"})
 public class ServletUsers extends HttpServlet {
@@ -22,17 +28,40 @@ public class ServletUsers extends HttpServlet {
 
     private final NewsDAO newsDAO = new NewsDAO();
 
+    /* ========= i18n: set JSTL locale + bundle UTF-8 ========= */
+    private void applyI18n(HttpServletRequest req) {
+        HttpSession session = req.getSession();
+        String qLang = req.getParameter("lang");
+        if (qLang != null && !qLang.isBlank()) {
+            session.setAttribute("lang", qLang);
+        }
+        String current = (String) session.getAttribute("lang");
+        if (current == null || current.isBlank()) current = "vi";
+        Locale locale = Locale.forLanguageTag(current);
+
+        try {
+            ResourceBundle bundle = ResourceBundle.getBundle("messages", locale, new Utf8Control());
+            Config.set(session, Config.FMT_LOCALE, locale);
+            Config.set(session, Config.FMT_LOCALIZATION_CONTEXT,
+                new jakarta.servlet.jsp.jstl.fmt.LocalizationContext(bundle, locale));
+        } catch (MissingResourceException ignore) {
+            Config.set(session, Config.FMT_LOCALE, locale);
+        }
+    }
+    /* ========================================================= */
+
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp)
             throws ServletException, IOException {
         setUTF8(req, resp);
+        applyI18n(req);
 
         String view = param(req, "view", "list"); // list | detail | category | newsletter
         switch (view) {
-            case "detail"     -> showDetail(req, resp);
-            case "category"   -> showCategory(req, resp);
-            case "newsletter" -> showNewsletter(req, resp);
-            default           -> showList(req, resp);
+            case "detail":     showDetail(req, resp);     break;
+            case "category":   showCategory(req, resp);   break;
+            case "newsletter": showNewsletter(req, resp); break;
+            default:           showList(req, resp);       break;
         }
     }
 
@@ -40,6 +69,7 @@ public class ServletUsers extends HttpServlet {
     protected void doPost(HttpServletRequest req, HttpServletResponse resp)
             throws ServletException, IOException {
         setUTF8(req, resp);
+        applyI18n(req);
         String view = req.getParameter("view");
         if ("newsletter".equals(view)) {
             handleNewsletterSubmit(req, resp);
@@ -57,7 +87,7 @@ public class ServletUsers extends HttpServlet {
             req.setAttribute("homeLatest", newsDAO.selectHomeLatest(6));
             req.setAttribute("homeMost",   newsDAO.selectHomeMostViewed(6));
 
-            // Nếu muốn thêm danh sách tổng quát (không lọc Home)
+            // Thêm 2 block tổng quát nếu cần
             req.setAttribute("latestAll", newsDAO.latest(10));
             req.setAttribute("mostAll",   newsDAO.mostViewed(10));
         } catch (Exception e) {
@@ -86,7 +116,7 @@ public class ServletUsers extends HttpServlet {
             req.setAttribute("category", cat);
             req.setAttribute("list", list);
 
-            // Sidebar: vẫn ưu tiên block Trang nhất
+            // Sidebar: ưu tiên block Trang nhất
             req.setAttribute("homeMost",   newsDAO.selectHomeMostViewed(5));
             req.setAttribute("homeLatest", newsDAO.selectHomeLatest(5));
         } catch (Exception e) {

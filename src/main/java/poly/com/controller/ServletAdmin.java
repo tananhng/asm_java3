@@ -9,7 +9,11 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Paths;
 import java.util.Date;
+import java.util.Locale;
+import java.util.MissingResourceException;
+import java.util.ResourceBundle;
 
+import jakarta.servlet.jsp.jstl.core.Config;
 import org.apache.commons.beanutils.BeanUtils;
 import org.apache.commons.beanutils.ConvertUtils;
 import org.apache.commons.beanutils.converters.DateConverter;
@@ -24,9 +28,12 @@ import poly.com.model.Users;
 import poly.com.model.news;
 import poly.com.model.Newsletter;
 import poly.com.model.Category;
+import poly.com.utils.Utf8Control;
 
-@WebServlet(name = "ServletAdmin",
-        urlPatterns = {"/admin", "/admin-categories", "/login", "/logout"})
+@WebServlet(
+    name = "ServletAdmin",
+    urlPatterns = {"/admin", "/admin-categories", "/login", "/logout"}
+)
 @MultipartConfig
 public class ServletAdmin extends HttpServlet {
     private static final long serialVersionUID = 1L;
@@ -46,12 +53,36 @@ public class ServletAdmin extends HttpServlet {
         ConvertUtils.register(booleanConverter, Boolean.class);
     }
 
+    /* ========= i18n: set JSTL locale + bundle UTF-8 ========= */
+    private void applyI18n(HttpServletRequest req) {
+        HttpSession session = req.getSession();
+        String qLang = req.getParameter("lang");
+        if (qLang != null && !qLang.isBlank()) {
+            session.setAttribute("lang", qLang);
+        }
+        String current = (String) session.getAttribute("lang");
+        if (current == null || current.isBlank()) current = "vi";
+        Locale locale = Locale.forLanguageTag(current);
+
+        try {
+            // basename "messages" vì header.jsp cũng dùng messages.*
+            ResourceBundle bundle = ResourceBundle.getBundle("messages", locale, new Utf8Control());
+            Config.set(session, Config.FMT_LOCALE, locale);
+            Config.set(session, Config.FMT_LOCALIZATION_CONTEXT,
+                new jakarta.servlet.jsp.jstl.fmt.LocalizationContext(bundle, locale));
+        } catch (MissingResourceException ignore) {
+            Config.set(session, Config.FMT_LOCALE, locale);
+        }
+    }
+    /* ========================================================= */
+
     // ================== GET ==================
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp)
             throws ServletException, IOException {
 
         setUTF8(req, resp);
+        applyI18n(req);
         String uri = req.getRequestURI();
 
         // ---- LOGOUT ----
@@ -95,7 +126,7 @@ public class ServletAdmin extends HttpServlet {
                 String action = param(req, "action", "list");
 
                 switch (action) {
-                    case "edit": {
+                    case "edit":
                         Category editing = null;
                         if (id != null && !id.isBlank()) {
                             editing = categoriesDAO.selectById(id);
@@ -103,8 +134,8 @@ public class ServletAdmin extends HttpServlet {
                         }
                         forwardCategoryForm(req, resp, editing);
                         break;
-                    }
-                    case "delete": {
+
+                    case "delete":
                         if (id != null && !id.isBlank()) {
                             try {
                                 categoriesDAO.delete(id);
@@ -115,12 +146,11 @@ public class ServletAdmin extends HttpServlet {
                         }
                         forwardCategoryList(req, resp);
                         break;
-                    }
+
                     case "list":
-                    default: {
+                    default:
                         forwardCategoryList(req, resp);
                         break;
-                    }
                 }
                 return;
             }
@@ -129,26 +159,24 @@ public class ServletAdmin extends HttpServlet {
             String action = param(req, "action", isAdmin ? "dashboard" : "list");
 
             switch (action) {
-                case "dashboard": {
+                case "dashboard":
                     if (!isAdmin) { resp.sendRedirect(req.getContextPath() + "/admin?action=list"); return; }
                     forwardDashboard(req, resp);
                     break;
-                }
 
                 // alias cũ cho Categories
-                case "categories": {
+                case "categories":
                     if (!isAdmin) { resp.sendError(HttpServletResponse.SC_FORBIDDEN); return; }
                     resp.sendRedirect(req.getContextPath() + "/admin-categories?action=list");
                     break;
-                }
 
                 // ===== USERS =====
-                case "users": {
+                case "users":
                     if (!isAdmin) { resp.sendError(HttpServletResponse.SC_FORBIDDEN); return; }
                     forwardUserList(req, resp);
                     break;
-                }
-                case "users-edit": {
+
+                case "users-edit":
                     if (!isAdmin) { resp.sendError(HttpServletResponse.SC_FORBIDDEN); return; }
                     Users editing = null;
                     if (id != null && !id.isBlank()) {
@@ -157,8 +185,8 @@ public class ServletAdmin extends HttpServlet {
                     }
                     forwardUserForm(req, resp, editing);
                     break;
-                }
-                case "users-delete": {
+
+                case "users-delete":
                     if (!isAdmin) { resp.sendError(HttpServletResponse.SC_FORBIDDEN); return; }
                     if (id != null && !id.isBlank()) {
                         try {
@@ -170,15 +198,14 @@ public class ServletAdmin extends HttpServlet {
                     }
                     forwardUserList(req, resp);
                     break;
-                }
 
                 // ===== NEWSLETTERS =====
-                case "newsletters": {
+                case "newsletters":
                     if (!isAdmin) { resp.sendError(HttpServletResponse.SC_FORBIDDEN); return; }
                     forwardNewsletterList(req, resp);
                     break;
-                }
-                case "newsletters-edit": {
+
+                case "newsletters-edit":
                     if (!isAdmin) { resp.sendError(HttpServletResponse.SC_FORBIDDEN); return; }
                     String email = req.getParameter("email");
                     if (email != null && !email.isBlank()) {
@@ -188,28 +215,27 @@ public class ServletAdmin extends HttpServlet {
                     }
                     forwardNewsletterForm(req, resp);
                     break;
-                }
-                case "newsletters-delete": {
+
+                case "newsletters-delete":
                     if (!isAdmin) { resp.sendError(HttpServletResponse.SC_FORBIDDEN); return; }
-                    String email = req.getParameter("email");
-                    if (email != null && !email.isBlank()) {
+                    String emailDel = req.getParameter("email");
+                    if (emailDel != null && !emailDel.isBlank()) {
                         try {
-                            newsletterDAO.delete(email);
-                            req.setAttribute("message", "Đã xoá: " + email);
+                            newsletterDAO.delete(emailDel);
+                            req.setAttribute("message", "Đã xoá: " + emailDel);
                         } catch (Exception ex) {
                             req.setAttribute("message", "Xoá thất bại: " + ex.getMessage());
                         }
                     }
                     forwardNewsletterList(req, resp);
                     break;
-                }
 
                 // ===== NEWS =====
-                case "news-edit": { // mở form tạo mới
+                case "news-edit": // form tạo mới
                     forwardNewsForm(req, resp, null, isAdmin);
                     break;
-                }
-                case "edit": { // mở form sửa theo id (giữ tương thích với news-list cũ)
+
+                case "edit": { // form sửa theo id (tương thích news-list cũ)
                     news n = null;
                     if (id != null && !id.isBlank()) {
                         n = newsDAO.selectById(id);
@@ -227,7 +253,8 @@ public class ServletAdmin extends HttpServlet {
                     forwardNewsForm(req, resp, n, isAdmin);
                     break;
                 }
-                case "delete": {
+
+                case "delete":
                     if (id != null && !id.isBlank()) {
                         news n = newsDAO.selectById(id);
                         if (n == null) {
@@ -245,13 +272,11 @@ public class ServletAdmin extends HttpServlet {
                     }
                     forwardNewsList(req, resp, me, isAdmin);
                     break;
-                }
 
                 case "list":
-                default: {
+                default:
                     forwardNewsList(req, resp, me, isAdmin);
                     break;
-                }
             }
 
         } catch (Exception ex) {
@@ -266,6 +291,7 @@ public class ServletAdmin extends HttpServlet {
     protected void doPost(HttpServletRequest req, HttpServletResponse resp)
             throws ServletException, IOException {
         setUTF8(req, resp);
+        applyI18n(req);
         String uri = req.getRequestURI();
 
         // ---- LOGIN (POST) ----
@@ -323,10 +349,9 @@ public class ServletAdmin extends HttpServlet {
                         forwardCategoryList(req, resp);
                         break;
                     }
-                    default: {
+                    default:
                         forwardCategoryList(req, resp);
                         break;
-                    }
                 }
                 return;
             }
@@ -438,10 +463,9 @@ public class ServletAdmin extends HttpServlet {
                     break;
                 }
 
-                default: {
+                default:
                     forwardNewsList(req, resp, me, isAdmin);
                     break;
-                }
             }
         } catch (Exception e) {
             req.setAttribute("message", "Lỗi: " + e.getMessage());
@@ -530,7 +554,7 @@ public class ServletAdmin extends HttpServlet {
         req.setAttribute("totalUsers",       users);
         req.setAttribute("totalSubscribers", subs);
 
-        // alias cũ
+        // aliases
         req.setAttribute("countNews",        news);
         req.setAttribute("countCategories",  cats);
         req.setAttribute("countUsers",       users);
