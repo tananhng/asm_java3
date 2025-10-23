@@ -2,10 +2,6 @@
 <%@ taglib prefix="c"   uri="jakarta.tags.core" %>
 <%@ taglib prefix="fmt" uri="jakarta.tags.fmt" %>
 
-<%-- current language from session (default vi) --%>
-<c:set var="currentLang" value="${empty sessionScope.lang ? 'vi' : sessionScope.lang}" />
-<fmt:setLocale value="${currentLang}" scope="session"/>
-<fmt:setBundle basename="messages"/>
 
 <%-- common URLs --%>
 <c:url var="homeUrl" value="/users"><c:param name="view" value="list"/></c:url>
