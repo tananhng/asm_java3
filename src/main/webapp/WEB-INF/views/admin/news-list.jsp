@@ -4,11 +4,13 @@
 
 <%@ include file="/WEB-INF/views/layout/header.jsp" %>
 
+<c:set var="isAdmin" value="${requestScope.isAdmin}" />
+
 <div class="layout-admin">
   <%@ include file="/WEB-INF/views/layout/sidebar.jsp" %>
 
   <section class="page">
-    <h2>Quản lý Tin tức</h2>
+    <h2><fmt:message key="admin.news.title"/></h2>
 
     <c:if test="${not empty message}">
       <div class="alert" style="margin:10px 0; padding:10px; border:1px solid #e5e7eb; background:#fef3c7">
@@ -18,34 +20,32 @@
 
     <c:if test="${not isAdmin}">
       <p style="margin:6px 0 14px; font-size:13px; opacity:.8">
-        *Bạn đang xem <strong>bài viết của riêng bạn</strong>.
+        <fmt:message key="admin.news.onlyMine"/>
       </p>
     </c:if>
 
-    <!-- nút thêm -> sang trang form -->
     <p>
       <c:url var="addUrl" value="/admin"><c:param name="action" value="news-edit"/></c:url>
-      <a class="btn" href="${addUrl}">+ Thêm bản tin</a>
+      <a class="btn" href="${addUrl}">+ <fmt:message key="admin.quick.addNews"/></a>
     </p>
 
-    <!-- Bảng danh sách -->
     <table class="table">
       <thead>
       <tr>
-        <th>Id</th>
-        <th>Tiêu đề</th>
-        <th>Tác giả</th>
-        <th>Loại</th>
-        <th>Home</th>
-        <th>Lượt xem</th>
-        <th>Ngày đăng</th>
-        <th>Thao tác</th>
+        <th><fmt:message key="admin.table.id"/></th>
+        <th><fmt:message key="admin.table.title"/></th>
+        <th><fmt:message key="admin.news.author"/></th>
+        <th><fmt:message key="admin.table.category"/></th>
+        <th><fmt:message key="admin.table.home"/></th>
+        <th><fmt:message key="admin.table.views"/></th>
+        <th><fmt:message key="admin.table.date"/></th>
+        <th><fmt:message key="admin.table.actions"/></th>
       </tr>
       </thead>
       <tbody>
       <c:choose>
         <c:when test="${empty newsList}">
-          <tr><td colspan="8"><em>Chưa có bản tin nào.</em></td></tr>
+          <tr><td colspan="8"><em><fmt:message key="admin.news.empty"/></em></td></tr>
         </c:when>
         <c:otherwise>
           <c:forEach var="n" items="${newsList}">
@@ -77,9 +77,11 @@
                   <c:param name="view" value="detail"/>
                   <c:param name="id" value="${n.id}"/>
                 </c:url>
-                <a href="${editRowUrl}">Sửa</a> |
-                <a href="${delUrl}" onclick="return confirm('Xoá bản tin ${n.id}?');">Xoá</a> |
-                <a href="${viewUrl}" target="_blank">Xem</a>
+                <a href="${editRowUrl}"><fmt:message key="common.edit"/></a> |
+                <a href="${delUrl}" onclick="return confirm('<fmt:message key="admin.news.confirmDelete"><fmt:param value="${n.id}"/></fmt:message>');">
+                  <fmt:message key="common.delete"/>
+                </a> |
+                <a href="${viewUrl}" target="_blank"><fmt:message key="common.view"/></a>
               </td>
             </tr>
           </c:forEach>

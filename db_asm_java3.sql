@@ -102,4 +102,4 @@ FOREIGN KEY (Id_Author) REFERENCES dbo.USERS(Id_Author)
 ON DELETE CASCADE;
 GO
 
-select * from USERS
+select * from dbo.CATEGORIES
