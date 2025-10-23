@@ -7,7 +7,8 @@ public class JDBC {
     private static final String URL =
         "jdbc:sqlserver://localhost:1433;"
       + "databaseName=ABCNewsDB;"
-      + "encrypt=true;trustServerCertificate=true;"; // dev: chấp nhận cert self-signed
+      + "encrypt=true;trustServerCertificate=true;"
+      + "sendStringAsUnicode=true;"; // dev: chấp nhận cert self-signed
     private static final String USER = "sa";
     private static final String PASS = "1903";
 
