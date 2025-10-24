@@ -78,9 +78,9 @@ GO
 
 /* News mẫu (Id tự tăng) */
 INSERT INTO dbo.NEWS (Title, [Content], [Image], PostedDate, ViewCount, Home, Id_Author, CategoryId) VALUES
-(N'Thời sự buổi sáng', N'Nội dung bài viết thời sự...',  N'assets/img/hero1.jpg', GETDATE(),  50, 1, N'admin', N'thoi-su'),
-(N'Bóng đá cuối tuần', N'Nội dung bài viết thể thao...', N'assets/img/hero2.jpg', GETDATE(), 120, 1, N'user1', N'the-thao'),
-(N'AI lên ngôi',       N'Nội dung bài viết công nghệ...',N'assets/img/hero3.jpg', GETDATE(),  75, 0, N'admin', N'cong-nghe');
+(N'Thời sự buổi sáng', N'Nội dung bài viết thời sự...',  N'uploads/DSC1163-1760111073.webp', GETDATE(),  50, 1, N'admin', N'thoi-su'),
+(N'Bóng đá cuối tuần', N'Nội dung bài viết thể thao...', N'uploads/mu.jpg', GETDATE(), 120, 1, N'user1', N'the-thao'),
+(N'AI lên ngôi',       N'Nội dung bài viết công nghệ...',N'uploads/DSC1163-1760111073.webp', GETDATE(),  75, 1, N'admin', N'cong-nghe');
 GO
 
 /* Newsletters mẫu */
